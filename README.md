@@ -3,7 +3,7 @@
 Antivirus for documents. A marketing website plus a REST API that scans uploaded
 documents for malware, backed by [ClamAV](https://www.clamav.net/).
 
-> Tracked in Jira: **GN-1**.
+> Tracked in Jira: **GN-1**. See [`plan.md`](./plan.md) for the project plan and roadmap.
 
 ## Architecture
 
