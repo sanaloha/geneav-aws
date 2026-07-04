@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: geneav-scan-api
+  servlet:
+    multipart:
+      # Reject uploads larger than this -> handled as HTTP 413
+      max-file-size: 25MB
+      max-request-size: 26MB
+
+geneav:
+  clamav:
+    host: ${CLAMAV_HOST:localhost}
+    port: ${CLAMAV_PORT:3310}
+    timeout-ms: 30000
+  cors:
+    allowed-origins: ${GENEAV_ALLOWED_ORIGINS:http://localhost:3000}
+
+springdoc:
+  swagger-ui:
+    path: /docs
+  api-docs:
+    path: /api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
