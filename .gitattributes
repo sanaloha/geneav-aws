@@ -1,0 +1,9 @@
+# Files that run on the Linux VM must keep LF endings regardless of the
+# committer's core.autocrlf setting. CRLF would break the shell script
+# (bad interpreter) and the Caddy/Docker configs.
+*.sh        text eol=lf
+Caddyfile   text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+.env*       text eol=lf
