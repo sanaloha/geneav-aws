@@ -1,0 +1,5 @@
+# Production env file with the real GENEAV_HOST — commit only .env.prod.example.
+.env.prod
+
+# Local frontend env overrides.
+.env.local

@@ -1,4 +1,11 @@
-export const metadata = { title: "Features — geneav" };
+import { REPO_URL } from "../site";
+
+export const metadata = {
+  title: "Features",
+  description:
+    "How geneav scans documents for malware: the ClamAV engine, streaming INSTREAM scans, structured JSON verdicts, type and size guards, health checks, OpenAPI docs — free and open source.",
+  alternates: { canonical: "/features" },
+};
 
 export default function Features() {
   return (
@@ -31,6 +38,13 @@ export default function Features() {
           <div className="card">
             <h3>OpenAPI docs</h3>
             <p>Interactive Swagger UI ships with the API at <code>/docs</code>.</p>
+          </div>
+          <div className="card">
+            <h3>Open source</h3>
+            <p>
+              MIT licensed and self-hostable. Audit the code or run your own instance — see{" "}
+              <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>.
+            </p>
           </div>
         </div>
 

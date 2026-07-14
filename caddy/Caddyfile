@@ -1,29 +1,23 @@
 # geneav reverse proxy — TLS termination + routing + per-IP rate limiting.
-# The hostname comes from the GENEAV_HOST env var (set in .env.prod), e.g.
-#   GENEAV_HOST=geneav.20-1-2-3.nip.io
-# Caddy obtains a real Let's Encrypt certificate for it automatically.
+# Apex host comes from GENEAV_HOST (.env.prod); www redirects to the apex.
 {
 	# rate_limit is a plugin handler, so its order must be declared explicitly.
 	order rate_limit before reverse_proxy
+}
 
-	# --- Let's Encrypt STAGING (uncomment to test issuance without burning the
-	#     shared nip.io production quota; comment out again once it works) ---
-	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+# Canonicalize www -> apex.
+www.geneav.com {
+	redir https://geneav.com{uri} permanent
 }
 
 {$GENEAV_HOST} {
 	encode gzip
 
-	# API calls → backend. The /api prefix is PRESERVED (handle, not handle_path),
-	# because the backend serves routes under /api/v1/*.
+	# Scan API → backend. /api prefix PRESERVED (handle, not handle_path).
 	handle /api/* {
-		# Cap upload size at the edge (the backend enforces its own 413 limit too).
 		request_body {
 			max_size 30MB
 		}
-
-		# Per-IP rate limit on the scan API — a public, unauthenticated,
-		# CPU/RAM-heavy endpoint is a DoS magnet. Tune events/window to taste.
 		rate_limit {
 			zone scan_api {
 				key {remote_host}
@@ -31,7 +25,12 @@
 				window 1m
 			}
 		}
+		reverse_proxy backend:8080
+	}
 
+	# API docs (Swagger UI + OpenAPI JSON) live on the backend but outside /api/*.
+	@docs path /docs /docs/* /api-docs /api-docs/* /swagger-ui /swagger-ui/*
+	handle @docs {
 		reverse_proxy backend:8080
 	}
 

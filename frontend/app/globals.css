@@ -48,6 +48,22 @@ a:hover { text-decoration: underline; }
   background: rgba(53, 208, 165, 0.12); color: var(--brand-2);
   font-size: 13px; font-weight: 700; margin-bottom: 20px; border: 1px solid rgba(53,208,165,0.25);
 }
+.badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.badge-row .badge { margin-bottom: 20px; }
+
+.nav-gh { color: var(--brand-2) !important; }
+.nav-gh:hover { color: var(--text) !important; }
+
+/* Highlighted open-source panel */
+.os-panel {
+  background: linear-gradient(180deg, rgba(79,140,255,0.10), rgba(53,208,165,0.06));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 34px;
+}
+.os-panel h2 { margin: 10px 0 8px; }
+.os-panel .lead { max-width: 720px; }
+.btn-row-left { justify-content: flex-start; margin-top: 4px; }
 
 .btn {
   display: inline-block; padding: 12px 22px; border-radius: 10px;
@@ -80,6 +96,7 @@ pre {
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
 .footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--muted); font-size: 14px; }
+.footer-inner { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 /* Scan form */
 .dropzone {
