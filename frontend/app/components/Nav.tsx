@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { REPO_URL } from "../site";
 
 export default function Nav() {
   return (
@@ -11,6 +12,9 @@ export default function Nav() {
           <Link href="/features">Features</Link>
           <Link href="/developers">Developers</Link>
           <Link href="/about">About</Link>
+          <a href={REPO_URL} target="_blank" rel="noreferrer" className="nav-gh">
+            ★ GitHub
+          </a>
         </nav>
       </div>
     </header>

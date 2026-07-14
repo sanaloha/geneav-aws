@@ -1,4 +1,11 @@
-export const metadata = { title: "About — geneav" };
+import { REPO_URL, LICENSE_URL } from "../site";
+
+export const metadata = {
+  title: "About",
+  description:
+    "geneav is a focused, open-source (MIT) antivirus for documents — malware scanning as simple as an HTTP request, powered by ClamAV.",
+  alternates: { canonical: "/about" },
+};
 
 export default function About() {
   return (
@@ -19,6 +26,14 @@ export default function About() {
           <div className="card">
             <h3>The engine</h3>
             <p>geneav is powered by ClamAV, an open-source antivirus engine with a broad, frequently updated signature set.</p>
+          </div>
+          <div className="card">
+            <h3>Open source</h3>
+            <p>
+              geneav itself is open source under the MIT license. Explore the code, self-host
+              it, or contribute on <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
+              {" "}(<a href={LICENSE_URL} target="_blank" rel="noreferrer">license</a>).
+            </p>
           </div>
           <div className="card">
             <h3>Contact</h3>
