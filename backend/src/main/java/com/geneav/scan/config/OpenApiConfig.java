@@ -16,7 +16,7 @@ public class OpenApiConfig {
                 .title("geneav Scan API")
                 .version("v1")
                 .description("Scan documents for malware. Backed by ClamAV.")
-                .contact(new Contact().name("geneav").email("support@geneav.example"))
+                .contact(new Contact().name("geneav").email("admin@geneav.com"))
                 .license(new License().name("MIT")));
     }
 }

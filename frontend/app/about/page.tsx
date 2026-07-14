@@ -24,7 +24,7 @@ export default function About() {
             <h3>Contact</h3>
             <p>
               Questions or feedback? Email{" "}
-              <a href="mailto:support@geneav.example">support@geneav.example</a>.
+              <a href="mailto:admin@geneav.com">admin@geneav.com</a>.
             </p>
           </div>
         </div>
