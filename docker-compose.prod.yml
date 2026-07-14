@@ -1,0 +1,68 @@
+# Production override for a single Azure VM.
+# Run WITHOUT the dev compose auto-override:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Requires a .env.prod file (see .env.prod.example) that defines GENEAV_HOST.
+# Load it explicitly, e.g.:
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  # TLS-terminating reverse proxy. Only this service faces the internet.
+  caddy:
+    build: ./caddy
+    container_name: geneav-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"    # ACME HTTP-01 challenge + HTTP->HTTPS redirect
+      - "443:443"  # HTTPS
+    environment:
+      GENEAV_HOST: ${GENEAV_HOST:?set GENEAV_HOST in .env.prod (e.g. geneav.20-1-2-3.nip.io)}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data       # persists issued TLS certificates across restarts
+      - caddy-config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # NEXT_PUBLIC_API_BASE_URL is baked at BUILD time. Point it at the public
+        # host so the browser calls https://<host>/api/... (same origin as the page).
+        NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
+
+  backend:
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      GENEAV_ALLOWED_ORIGINS: https://${GENEAV_HOST}
+
+  clamav:
+    restart: unless-stopped
+    # clamd holds the full signature database resident (~1.5-2 GB). Give it headroom
+    # or it gets OOM-killed mid-scan. This is the main driver of VM sizing (use B2ms/8GiB).
+    mem_limit: 3g
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+# ---------------------------------------------------------------------------
+# NOTE ON THE APP PORT MAPPINGS (3000 / 8080 / 3310):
+# Docker Compose MERGES (appends) list values like `ports:` across -f files, so a
+# prod override cannot "unpublish" the ports declared in docker-compose.yml.
+# On the VM these ports stay bound on the host, but the Azure NSG only allows
+# inbound 22/80/443 from the internet, so they are NOT externally reachable —
+# the firewall is the enforcement boundary here.
+#
+# For defense-in-depth (recommended if you want the ports gone entirely), move
+# the `ports:` blocks out of docker-compose.yml into a docker-compose.override.yml
+# (Compose auto-loads it for local `docker compose up`, but it is NOT included when
+# you pass explicit -f files for prod). Then the base file has no host ports and
+# prod publishes nothing but Caddy's 80/443.
+# ---------------------------------------------------------------------------
