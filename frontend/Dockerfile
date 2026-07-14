@@ -4,6 +4,10 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY . .
+# NEXT_PUBLIC_* vars are inlined into the client bundle at build time.
+# Passed from docker-compose.prod.yml; falls back to localhost when unset (local dev).
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN npm run build
 
 # --- run stage ---
