@@ -10,9 +10,9 @@ export default function Home() {
           </div>
           <h1>Scan every document for malware.</h1>
           <p>
-            geneav is an open source antivirus built for documents. Drop in a
-            file and get an instant clean-or-infected verdict — from our website
-            or straight from your code via a simple REST API.
+            geneav is an antivirus built for documents. Drop in a file and get
+            an instant clean-or-infected verdict — from our website or straight
+            from your code via a simple REST API.
           </p>
           <div className="btn-row">
             <Link href="/developers" className="btn btn-primary">
