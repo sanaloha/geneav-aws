@@ -3,7 +3,7 @@ import ScanForm from "../components/ScanForm";
 export const metadata = {
   title: "Developers — API",
   description:
-    "Integrate malware scanning with one HTTP call. POST a file to /api/v1/scan and get a JSON verdict. Open-source, OpenAPI-documented, powered by ClamAV — try a live scan.",
+    "Integrate malware scanning with one HTTP call. POST a file to /api/v1/scan and get a JSON verdict. OpenAPI-documented, powered by ClamAV — try a live scan.",
   alternates: { canonical: "/developers" },
 };
 

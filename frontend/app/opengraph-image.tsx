@@ -36,7 +36,7 @@ export default function OpengraphImage() {
             color: "#35d0a5",
           }}
         >
-          OPEN SOURCE · MIT LICENSED
+          DOCUMENT MALWARE SCANNING
         </div>
         <div style={{ display: "flex", fontSize: 110, fontWeight: 800, marginTop: 24 }}>
           <span>gene</span>
