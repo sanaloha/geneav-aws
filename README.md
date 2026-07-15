@@ -162,6 +162,68 @@ cd backend && mvn test
 | Allowed CORS origins | `GENEAV_ALLOWED_ORIGINS` | `http://localhost:3000`  |
 | Frontend → API URL   | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8080` |
 
+## Deployment
+
+Production runs on a single Azure VM (`geneav-vm` / `GENEAV-RG`) behind Caddy.
+Pushing to `main` deploys automatically once CI passes.
+
+Deploys go through the **Azure control plane** (`az vm run-command`), not SSH.
+The VM's NSG only allows port 22 from a couple of fixed addresses, so a
+GitHub-hosted runner (dynamic egress IP) could never reach it — and the VM holds
+no credentials for this private repo, so it cannot `git pull` either. Instead
+`scripts/deploy-vm.sh` packages the commit with `git archive` and hands it to
+the VM, which unpacks it and rebuilds.
+
+### Deploy manually
+
+```bash
+az login
+scripts/deploy-vm.sh              # deploy the current commit
+scripts/deploy-vm.sh --dry-run    # print the remote script, change nothing
+```
+
+The script keeps the previous tree at `/home/azureuser/geneav-old-<timestamp>`,
+rolls back automatically if the build fails, and carries the VM's gitignored
+`.env.prod` across untouched.
+
+### One-time CI setup
+
+The `deploy` job authenticates with **OIDC**, so no long-lived secret is stored
+in GitHub. Create an Entra app federated to this repo and grant it rights on the
+VM:
+
+```bash
+# 1. app registration
+az ad app create --display-name geneav-deploy
+APP_ID=$(az ad app list --display-name geneav-deploy --query '[0].appId' -o tsv)
+az ad sp create --id "$APP_ID"
+
+# 2. trust GitHub Actions on main (no secret involved)
+az ad app federated-credential create --id "$APP_ID" --parameters '{
+  "name": "geneav-main",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:sanaloha/geneav:ref:refs/heads/main",
+  "audiences": ["api://AzureADTokenExchange"]
+}'
+
+# 3. least privilege: run commands on the one VM, nothing else
+SUB=$(az account show --query id -o tsv)
+az role assignment create --assignee "$APP_ID" \
+  --role "Virtual Machine Contributor" \
+  --scope "/subscriptions/$SUB/resourceGroups/GENEAV-RG/providers/Microsoft.Compute/virtualMachines/geneav-vm"
+```
+
+Then add these under **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|---|---|
+| `AZURE_CLIENT_ID` | `$APP_ID` from step 1 |
+| `AZURE_TENANT_ID` | `az account show --query tenantId -o tsv` |
+| `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv` |
+
+The old `SSH_HOST` / `SSH_USER` / `SSH_KEY` secrets are no longer used and can
+be deleted.
+
 ## Status vs. GN-1
 
 Implemented: scan + health endpoints, ClamAV integration, type/size guards

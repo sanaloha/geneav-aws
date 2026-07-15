@@ -45,31 +45,42 @@ jobs:
         run: npm run build
 
   # ----------------------------------------------------------------- deploy
-  # SSH into the Azure VM, pull the new code, and rebuild the stack.
-  # Requires these repo secrets (Settings → Secrets and variables → Actions):
-  #   SSH_HOST  — VM public IP (or hostname)
-  #   SSH_USER  — e.g. azureuser
-  #   SSH_KEY   — the PRIVATE SSH key whose public half is on the VM
-  # Assumes the repo is already cloned at ~/geneav on the VM with a valid .env.prod.
+  # Ships the commit to the VM through the Azure control plane (run-command).
+  #
+  # This deliberately does NOT use SSH. The previous SSH-based job could never
+  # have worked: GitHub-hosted runners have dynamic egress IPs but the VM's NSG
+  # only allows port 22 from a couple of fixed addresses, and it ran `git pull`
+  # on a VM that holds no credentials for this private repo. run-command needs
+  # no inbound port and no repo access on the VM.
+  #
+  # Requires these repo secrets (Settings → Secrets and variables → Actions),
+  # from an Entra app federated to this repo — see the setup notes in README:
+  #   AZURE_CLIENT_ID        — app registration (client) id
+  #   AZURE_TENANT_ID        — directory (tenant) id
+  #   AZURE_SUBSCRIPTION_ID  — target subscription
+  # There is no client secret: auth is OIDC, so no long-lived credential is
+  # stored in GitHub. The old SSH_HOST / SSH_USER / SSH_KEY secrets are unused
+  # and should be deleted.
   deploy:
     name: Deploy to Azure VM
     needs: [backend-test, frontend-build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # mint the OIDC token azure/login exchanges
+      contents: read
     concurrency:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - name: SSH deploy
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -euo pipefail
-            cd ~/geneav
-            git pull --ff-only origin main
-            docker compose --env-file .env.prod \
-              -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-            docker image prune -f
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy
+        run: ./scripts/deploy-vm.sh
