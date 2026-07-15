@@ -1,14 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Nav from "./components/Nav";
-import {
-  SITE_NAME,
-  SITE_URL,
-  SITE_TITLE,
-  SITE_DESCRIPTION,
-  REPO_URL,
-  LICENSE_URL,
-} from "./site";
+import { SITE_NAME, SITE_URL, SITE_TITLE, SITE_DESCRIPTION } from "./site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -19,7 +12,6 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: [
-    "open source antivirus",
     "document malware scanning",
     "virus scan API",
     "ClamAV REST API",
@@ -27,10 +19,9 @@ export const metadata: Metadata = {
     "scan PDF for malware",
     "self-hosted antivirus",
     "malware detection API",
-    "MIT licensed antivirus",
     "document security",
   ],
-  authors: [{ name: SITE_NAME, url: REPO_URL }],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
   category: "technology",
@@ -65,7 +56,7 @@ export const viewport: Viewport = {
   themeColor: "#0b1020",
 };
 
-// Structured data so search engines understand geneav is free, open-source software.
+// Structured data so search engines understand what geneav is.
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -77,15 +68,12 @@ const jsonLd = {
       applicationCategory: "SecurityApplication",
       operatingSystem: "Any",
       isAccessibleForFree: true,
-      license: LICENSE_URL,
-      codeRepository: REPO_URL,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     },
     {
       "@type": "Organization",
       name: SITE_NAME,
       url: SITE_URL,
-      sameAs: [REPO_URL],
     },
     {
       "@type": "WebSite",
@@ -109,16 +97,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="footer">
           <div className="container footer-inner">
             <span>© {new Date().getFullYear()} geneav · Document malware scanning · Powered by ClamAV</span>
-            <span>
-              Open source (MIT) ·{" "}
-              <a href={REPO_URL} target="_blank" rel="noreferrer">
-                GitHub
-              </a>{" "}
-              ·{" "}
-              <a href={LICENSE_URL} target="_blank" rel="noreferrer">
-                License
-              </a>
-            </span>
           </div>
         </footer>
       </body>
