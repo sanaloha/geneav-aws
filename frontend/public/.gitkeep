@@ -1,0 +1,5 @@
+# Keeps frontend/public/ in git.
+# frontend/Dockerfile does `COPY --from=build /app/public ./public`, which fails
+# if the directory does not exist. It became empty when the static robots.txt was
+# removed (80ee0d3) in favour of the generated one, and git does not track empty
+# directories — so a clean checkout could not build the frontend image.
