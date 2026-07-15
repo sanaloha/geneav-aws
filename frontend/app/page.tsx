@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { REPO_URL, LICENSE_URL } from "./site";
 
 export default function Home() {
   return (
@@ -7,14 +6,13 @@ export default function Home() {
       <section className="hero">
         <div className="container">
           <div className="badge-row">
-            <span className="badge">Open source · MIT</span>
             <span className="badge">Powered by ClamAV</span>
           </div>
           <h1>Scan every document for malware.</h1>
           <p>
-            geneav is a free, open-source antivirus built for documents. Drop in a file and get
-            an instant clean-or-infected verdict — from our website or straight from your code
-            via a simple REST API.
+            geneav is an open source antivirus built for documents. Drop in a
+            file and get an instant clean-or-infected verdict — from our website
+            or straight from your code via a simple REST API.
           </p>
           <div className="btn-row">
             <Link href="/developers" className="btn btn-primary">
@@ -23,9 +21,6 @@ export default function Home() {
             <Link href="/features" className="btn btn-ghost">
               How it works
             </Link>
-            <a href={REPO_URL} className="btn btn-ghost" target="_blank" rel="noreferrer">
-              ★ View on GitHub
-            </a>
           </div>
         </div>
       </section>
@@ -36,29 +31,22 @@ export default function Home() {
             <div className="card">
               <h3>🛡️ Real detection</h3>
               <p>
-                Backed by the ClamAV engine and its constantly updated signature database —
-                the same technology trusted across the industry.
+                Backed by the ClamAV engine and its constantly updated signature
+                database — the same technology trusted across the industry.
               </p>
             </div>
             <div className="card">
               <h3>⚡ One endpoint</h3>
               <p>
-                <code>POST /api/v1/scan</code> with a file. Get back a JSON verdict with the
-                threat name, file metadata, and a scan id.
+                <code>POST /api/v1/scan</code> with a file. Get back a JSON
+                verdict with the threat name, file metadata, and a scan id.
               </p>
             </div>
             <div className="card">
               <h3>🔌 Drop-in ready</h3>
               <p>
-                Language-agnostic HTTP API and OpenAPI docs. Wire it into uploads, inboxes,
-                or pipelines in minutes.
-              </p>
-            </div>
-            <div className="card">
-              <h3>🔓 Open source</h3>
-              <p>
-                MIT licensed and self-hostable. Audit every line, run your own instance, or
-                contribute — no black boxes, no lock-in.
+                Language-agnostic HTTP API and OpenAPI docs. Wire it into
+                uploads, inboxes, or pipelines in minutes.
               </p>
             </div>
           </div>
@@ -67,21 +55,38 @@ export default function Home() {
 
       <section className="section">
         <div className="container">
-          <div className="os-panel">
-            <span className="badge">🔓 Free &amp; open source</span>
-            <h2>Open source, MIT licensed</h2>
-            <p className="lead">
-              geneav is fully open source. Read the code, self-host it on your own
-              infrastructure, or send a pull request. Transparency is a security feature —
-              you never have to trust a black box with your files.
-            </p>
-            <div className="btn-row btn-row-left">
-              <a href={REPO_URL} className="btn btn-primary" target="_blank" rel="noreferrer">
-                ★ Star on GitHub
-              </a>
-              <a href={LICENSE_URL} className="btn btn-ghost" target="_blank" rel="noreferrer">
-                Read the MIT License
-              </a>
+          <span className="badge">🚧 Coming soon</span>
+          <h2>What&apos;s next for geneav</h2>
+          <p className="lead">
+            Features we&apos;re building. Not available yet — everything below
+            is planned work.
+          </p>
+          <div className="roadmap-grid">
+            <div className="card roadmap-card">
+              <div className="roadmap-head">
+                <span className="roadmap-num">1</span>
+                <h3>Customized corporate use</h3>
+                <span className="roadmap-tag">Next</span>
+              </div>
+              <p>Login and create your API key to start using geneav.</p>
+              <ul className="roadmap-list">
+                <li>Unlimited free usage</li>
+                <li>Dedicated APIs for virus scanning</li>
+                <li>Secure, encrypted workspace</li>
+                <li>High availability</li>
+                <li>Advanced vulnerability checks</li>
+              </ul>
+            </div>
+            <div className="card roadmap-card">
+              <div className="roadmap-head">
+                <span className="roadmap-num">2</span>
+                <h3>geneav chat agent</h3>
+                <span className="roadmap-tag">Planned</span>
+              </div>
+              <p>
+                Ask about scan results and threats in plain language, and get
+                help wiring the API into your own application.
+              </p>
             </div>
           </div>
         </div>
