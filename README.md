@@ -230,3 +230,17 @@ Implemented: scan + health endpoints, ClamAV integration, type/size guards
 (400/413/415), OpenAPI docs, responsive marketing site with a live "try a scan" page.
 
 Out of scope (per ticket): user accounts / API keys, billing, rate limiting.
+
+## License
+
+geneav's own code (frontend and backend) is **proprietary — all rights reserved**.
+See [`LICENSE`](./LICENSE).
+
+geneav uses [ClamAV](https://www.clamav.net/) as its detection engine. ClamAV is
+licensed under the **GNU GPL v2**. geneav does **not** link `libclamav`; the
+backend talks to the `clamd` daemon only over a network socket (INSTREAM), which
+is the integration model ClamAV documents for commercial and closed-source
+software. The GPL therefore applies to ClamAV itself and does not extend to
+geneav's application code. Attribution and the full rationale are in
+[`NOTICE`](./NOTICE); if you redistribute the ClamAV container, keep its GPL
+notices and source pointer intact.

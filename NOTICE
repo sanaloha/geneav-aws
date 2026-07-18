@@ -1,0 +1,59 @@
+geneav
+Copyright (c) 2026 Santosh Singh. All rights reserved.
+
+This product includes and integrates third-party software. The geneav
+application code is proprietary (see the LICENSE file). The third-party
+components below are governed by their own licenses, reproduced or referenced
+here as required by those licenses.
+
+================================================================================
+ClamAV
+================================================================================
+
+geneav uses ClamAV (https://www.clamav.net/, https://github.com/Cisco-Talos/clamav)
+as its malware detection engine.
+
+License: GNU General Public License, Version 2 (or, at your option, any later
+version). Full text: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ClamAV source: https://github.com/Cisco-Talos/clamav
+
+  Copyright (C) 2013-2024 Cisco Systems, Inc. and/or its affiliates.
+  All rights reserved.
+  Copyright (C) 2007-2013 Sourcefire, Inc.
+  Copyright (C) 2002-2007 Tomasz Kojm
+
+Integration model and GPL boundary
+----------------------------------
+geneav does NOT link against libclamav and includes no ClamAV source code.
+The geneav backend communicates with the ClamAV daemon (clamd) exclusively
+over a network socket using ClamAV's native INSTREAM protocol
+(see backend/src/main/java/com/geneav/scan/service/ClamAvScanEngine.java).
+
+This arm's-length, inter-process socket boundary is the integration method
+documented by the ClamAV project for use with commercial and closed-source
+software:
+
+  "Using clamdscan or communicating directly with clamd over a socket is fine
+   for integrating ClamAV with commercial software, as this approach avoids
+   direct linking to the GPL library."
+  — https://docs.clamav.net/manual/Development/libclamav.html
+
+Because geneav does not link libclamav and interacts with clamd only as a
+separate process over the network, the GNU GPL v2 obligations attach to ClamAV
+itself and do not extend to geneav's own application code.
+
+If you redistribute a ClamAV binary or container image as part of a geneav
+deployment, that ClamAV component remains under the GNU GPL v2: preserve its
+copyright and license notices, keep it under the GPL, and make its source
+available (the upstream source at https://github.com/Cisco-Talos/clamav
+satisfies this for unmodified builds). Running ClamAV as a network service
+that end users do not receive a copy of does not, by itself, trigger GPLv2's
+distribution obligations.
+
+ClamAV virus signature databases (CVD/CLD) are downloaded at runtime by
+freshclam and are not redistributed as part of geneav.
+
+================================================================================
+
+Trademarks: ClamAV is a registered trademark of Cisco Systems, Inc. All other
+trademarks are the property of their respective owners.

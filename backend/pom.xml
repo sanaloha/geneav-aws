@@ -17,6 +17,19 @@
     <name>geneav-scan-api</name>
     <description>geneav antivirus document-scanning REST API</description>
 
+    <licenses>
+        <license>
+            <name>Proprietary — All rights reserved</name>
+            <comments>Proprietary; see the LICENSE and NOTICE files at the repository root.
+                Integrates ClamAV (GNU GPL v2) over a network socket without linking libclamav.</comments>
+            <distribution>manual</distribution>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Santosh Singh</name>
+    </organization>
+
     <properties>
         <java.version>17</java.version>
     </properties>

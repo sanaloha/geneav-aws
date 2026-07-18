@@ -1,0 +1,32 @@
+geneav — Proprietary License
+Copyright (c) 2026 Santosh Singh. All rights reserved.
+
+1. Definitions
+   "Software" means the geneav application source code and assets in this
+   repository, excluding any third-party components listed in the accompanying
+   NOTICE file, which are governed by their own licenses.
+
+2. Grant
+   No license or right to use, copy, modify, merge, publish, distribute,
+   sublicense, or sell copies of the Software is granted except under a separate
+   written agreement signed by the copyright holder. All rights not expressly
+   granted are reserved.
+
+3. Third-Party Components
+   The Software integrates ClamAV (https://www.clamav.net/), which is licensed
+   under the GNU General Public License, Version 2. geneav communicates with the
+   ClamAV daemon (clamd) exclusively over a network socket using the INSTREAM
+   protocol; it does not link against libclamav and does not incorporate ClamAV
+   source code. ClamAV remains subject to the GNU GPL v2 and is not relicensed by
+   this file. See the NOTICE file for details and attribution.
+
+4. No Warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+   OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+For licensing inquiries, contact the copyright holder.
