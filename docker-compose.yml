@@ -23,6 +23,10 @@ services:
       CLAMAV_HOST: clamav
       CLAMAV_PORT: "3310"
       GENEAV_ALLOWED_ORIGINS: http://localhost:3000
+      # Chat assistant (OpenAI). Empty unless set in the shell / .env / .env.prod;
+      # when empty, /api/v1/chat returns 503 and the widget shows it's unconfigured.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     depends_on:
       clamav:
         condition: service_healthy

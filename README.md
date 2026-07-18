@@ -121,6 +121,25 @@ curl http://localhost:8080/api/v1/health
 | Unsupported content type           | 415  |
 | ClamAV engine unreachable          | 503  |
 
+### Chat assistant — `POST http://localhost:8080/api/v1/chat`
+
+A small chatbot (floating 💬 widget on every page) answers questions about geneav,
+the scans it performs, and the safety it provides — and politely declines anything
+off-topic. It is backed by the **OpenAI API**; the API key stays server-side.
+
+Send the conversation so far as JSON; the last message is the user's new question:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"What file types can geneav scan?"}]}'
+# {"reply":"geneav scans documents such as PDFs, Office files, text, CSV, RTF, and ZIPs …","model":"gpt-4o-mini"}
+```
+
+Chat is **disabled until `OPENAI_API_KEY` is set** on the server; until then
+`/chat` returns `503` and the widget shows that it is unconfigured. Check
+availability with `GET /api/v1/chat/health`.
+
 ## Testing with Postman
 
 1. **New request** → set method to **POST** and URL to
@@ -161,6 +180,13 @@ cd backend && mvn test
 | Max upload size      | (application.yml)        | `25MB`                   |
 | Allowed CORS origins | `GENEAV_ALLOWED_ORIGINS` | `http://localhost:3000`  |
 | Frontend → API URL   | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8080` |
+| OpenAI API key (chat)| `OPENAI_API_KEY`         | _(empty → chat disabled)_ |
+| OpenAI model         | `OPENAI_MODEL`          | `gpt-4o-mini`            |
+
+> The chat assistant needs `OPENAI_API_KEY`. Locally, export it before starting
+> the stack (e.g. `OPENAI_API_KEY=sk-... docker compose up`); in production put it
+> in the VM's gitignored `.env.prod`. Never commit a real key — `.env.prod.example`
+> ships only a placeholder.
 
 ## Deployment
 

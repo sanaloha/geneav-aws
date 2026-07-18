@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
 import Nav from "./components/Nav";
+import ChatWidget from "./components/ChatWidget";
 import { SITE_NAME, SITE_URL, SITE_TITLE, SITE_DESCRIPTION } from "./site";
 
 export const metadata: Metadata = {
@@ -101,6 +102,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/legal">Legal</Link>
           </div>
         </footer>
+        <ChatWidget />
       </body>
     </html>
   );

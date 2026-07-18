@@ -17,6 +17,14 @@ geneav:
     timeout-ms: 30000
   cors:
     allowed-origins: ${GENEAV_ALLOWED_ORIGINS:http://localhost:3000}
+  openai:
+    # Chat is disabled until an API key is provided; the /chat endpoint then returns 503.
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+    timeout-ms: 30000
+    max-messages: 20
+    max-chars-per-message: 4000
 
 springdoc:
   swagger-ui:
