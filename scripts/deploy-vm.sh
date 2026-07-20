@@ -36,7 +36,12 @@ git archive --format=tar HEAD | gzip -9 > "$work/tree.tar.gz"
 
 # Guard the mistake that broke a deploy once already: the Dockerfile copies
 # frontend/public, but git does not track empty directories.
-if ! tar -tzf "$work/tree.tar.gz" | grep -q '^frontend/public/'; then
+# NOTE: list into a variable first — piping `tar | grep -q` lets grep close the
+# pipe on its first match, and under `set -o pipefail` the resulting SIGPIPE on
+# tar makes the guard spuriously "fail" for archives large enough to still be
+# writing when grep exits.
+archive_list="$(tar -tzf "$work/tree.tar.gz")"
+if ! printf '%s\n' "$archive_list" | grep -q '^frontend/public/'; then
   echo "FATAL: frontend/public/ is not in the archive; the frontend image will" >&2
   echo "       fail on 'COPY --from=build /app/public ./public'. Ensure the" >&2
   echo "       directory is tracked (frontend/public/.gitkeep)." >&2
