@@ -25,6 +25,22 @@ geneav:
     timeout-ms: 30000
     max-messages: 20
     max-chars-per-message: 4000
+  ratelimit:
+    # Per-client throttling for the public API (token bucket per endpoint + IP).
+    # capacity = burst allowance; refill-per-minute = sustained rate. Tune per env.
+    enabled: ${GENEAV_RATELIMIT_ENABLED:true}
+    scan:
+      capacity: ${GENEAV_RATELIMIT_SCAN_CAPACITY:10}
+      refill-per-minute: ${GENEAV_RATELIMIT_SCAN_RPM:10}
+    chat:
+      capacity: ${GENEAV_RATELIMIT_CHAT_CAPACITY:15}
+      refill-per-minute: ${GENEAV_RATELIMIT_CHAT_RPM:15}
+    other:
+      capacity: ${GENEAV_RATELIMIT_OTHER_CAPACITY:60}
+      refill-per-minute: ${GENEAV_RATELIMIT_OTHER_RPM:60}
+    # Global cap on simultaneous scans, protecting ClamAV's memory footprint.
+    scan-max-concurrent: ${GENEAV_RATELIMIT_SCAN_CONCURRENCY:4}
+    scan-acquire-timeout-ms: ${GENEAV_RATELIMIT_SCAN_ACQUIRE_TIMEOUT_MS:2000}
 
 springdoc:
   swagger-ui:

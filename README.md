@@ -182,6 +182,10 @@ cd backend && mvn test
 | Frontend → API URL   | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8080` |
 | OpenAI API key (chat)| `OPENAI_API_KEY`         | _(empty → chat disabled)_ |
 | OpenAI model         | `OPENAI_MODEL`          | `gpt-4o-mini`            |
+| Rate limiting on/off | `GENEAV_RATELIMIT_ENABLED` | `true`                |
+| Scan burst / per-min | `GENEAV_RATELIMIT_SCAN_CAPACITY` / `GENEAV_RATELIMIT_SCAN_RPM` | `10` / `10` |
+| Chat burst / per-min | `GENEAV_RATELIMIT_CHAT_CAPACITY` / `GENEAV_RATELIMIT_CHAT_RPM` | `15` / `15` |
+| Max concurrent scans | `GENEAV_RATELIMIT_SCAN_CONCURRENCY` | `4`             |
 
 > The chat assistant needs `OPENAI_API_KEY`. Locally, export it before starting
 > the stack (e.g. `OPENAI_API_KEY=sk-... docker compose up`); in production put it
@@ -253,9 +257,10 @@ be deleted.
 ## Status vs. GN-1
 
 Implemented: scan + health endpoints, ClamAV integration, type/size guards
-(400/413/415), OpenAPI docs, responsive marketing site with a live "try a scan" page.
+(400/413/415), OpenAPI docs, responsive marketing site with a live "try a scan"
+page, and **per-client rate limiting + scan concurrency caps** (429 on breach).
 
-Out of scope (per ticket): user accounts / API keys, billing, rate limiting.
+Out of scope (per ticket): user accounts / API keys, billing.
 
 ## License
 
