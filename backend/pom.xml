@@ -48,6 +48,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Auth: password login + sessions (Google OAuth2 slots in later) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <!-- Persistence: accounts, API keys, usage metering -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -26,6 +26,18 @@ public class Account {
     @Column(nullable = false)
     private String status;
 
+    /** BCrypt hash of the password, or null for accounts without a password (e.g. OAuth). */
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    /** How this account authenticates: "password" or a federated provider like "google". */
+    @Column(name = "auth_provider", nullable = false)
+    private String authProvider = "password";
+
+    /** Stable subject id from the federated provider, or null for password accounts. */
+    @Column(name = "provider_subject")
+    private String providerSubject;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -67,6 +79,30 @@ public class Account {
 
     public boolean isActive() {
         return "active".equals(status);
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(String authProvider) {
+        this.authProvider = authProvider;
+    }
+
+    public String getProviderSubject() {
+        return providerSubject;
+    }
+
+    public void setProviderSubject(String providerSubject) {
+        this.providerSubject = providerSubject;
     }
 
     public Instant getCreatedAt() {

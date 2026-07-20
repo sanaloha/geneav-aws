@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-const STORAGE_KEY = "geneav.apiKey";
+
+type Me = { email: string; plan: string; authProvider: string };
 
 type Usage = {
   plan: string;
@@ -23,6 +24,9 @@ type KeySummary = {
   lastUsedAt: string | null;
 };
 
+// Session cookie auth — every call sends the HttpOnly session cookie.
+const withCreds: RequestInit = { credentials: "include" };
+
 async function apiErrorMessage(res: Response, fallback: string): Promise<string> {
   try {
     const body = await res.json();
@@ -40,14 +44,15 @@ function fmtDate(iso: string | null): string {
 }
 
 export default function Dashboard() {
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [ready, setReady] = useState(false); // hydrated from sessionStorage yet?
+  const [authState, setAuthState] = useState<"loading" | "anon" | "authed">("loading");
+  const [me, setMe] = useState<Me | null>(null);
 
-  // Landing form state
+  // Landing (sign in / sign up) form
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
-  const [pasteKey, setPasteKey] = useState("");
-  const [landingBusy, setLandingBusy] = useState(false);
-  const [landingError, setLandingError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Dashboard data
   const [usage, setUsage] = useState<Usage | null>(null);
@@ -55,52 +60,27 @@ export default function Dashboard() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // One-time plaintext key reveal (after signup or create)
+  // One-time plaintext key reveal after creating a key
   const [revealed, setRevealed] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
   const [newKeyName, setNewKeyName] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
-  useEffect(() => {
-    setApiKey(sessionStorage.getItem(STORAGE_KEY));
-    setReady(true);
-  }, []);
-
-  const persistKey = useCallback((key: string) => {
-    sessionStorage.setItem(STORAGE_KEY, key);
-    setApiKey(key);
-  }, []);
-
-  const signOut = useCallback(() => {
-    sessionStorage.removeItem(STORAGE_KEY);
-    setApiKey(null);
-    setUsage(null);
-    setKeys(null);
-    setRevealed(null);
-    setDataError(null);
-  }, []);
-
-  const loadData = useCallback(async (key: string) => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setDataError(null);
     try {
       const [uRes, kRes] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/usage`, { headers: { Authorization: `Bearer ${key}` } }),
-        fetch(`${API_BASE}/api/v1/keys`, { headers: { Authorization: `Bearer ${key}` } }),
+        fetch(`${API_BASE}/api/v1/usage`, withCreds),
+        fetch(`${API_BASE}/api/v1/keys`, withCreds),
       ]);
       if (uRes.status === 401 || kRes.status === 401) {
-        sessionStorage.removeItem(STORAGE_KEY);
-        setApiKey(null);
-        setLandingError("That API key is invalid or was revoked. Please sign in again.");
+        setAuthState("anon");
+        setMe(null);
         return;
       }
-      if (!uRes.ok) {
-        setDataError(await apiErrorMessage(uRes, "Could not load usage"));
-        return;
-      }
-      setUsage(await uRes.json());
-      setKeys(kRes.ok ? await kRes.json() : []);
+      if (uRes.ok) setUsage(await uRes.json());
+      if (kRes.ok) setKeys(await kRes.json());
     } catch {
       setDataError(`Could not reach the API at ${API_BASE}.`);
     } finally {
@@ -108,56 +88,76 @@ export default function Dashboard() {
     }
   }, []);
 
+  // On mount, ask the server whether we already have a session.
   useEffect(() => {
-    if (apiKey) loadData(apiKey);
-  }, [apiKey, loadData]);
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/me`, withCreds);
+        if (res.ok) {
+          setMe(await res.json());
+          setAuthState("authed");
+        } else {
+          setAuthState("anon");
+        }
+      } catch {
+        setAuthState("anon");
+      }
+    })();
+  }, []);
 
-  const onSignup = useCallback(
+  useEffect(() => {
+    if (authState === "authed") loadData();
+  }, [authState, loadData]);
+
+  const onAuth = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      setLandingBusy(true);
-      setLandingError(null);
+      setAuthBusy(true);
+      setAuthError(null);
       try {
-        const res = await fetch(`${API_BASE}/api/v1/signup`, {
+        const res = await fetch(`${API_BASE}/api/v1/auth/${mode === "signup" ? "signup" : "login"}`, {
+          ...withCreds,
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, password }),
         });
         if (!res.ok) {
-          setLandingError(await apiErrorMessage(res, "Sign up failed"));
+          setAuthError(await apiErrorMessage(res, mode === "signup" ? "Sign up failed" : "Sign in failed"));
           return;
         }
-        const body = await res.json();
-        setRevealed(body.apiKey);
-        persistKey(body.apiKey);
+        setMe(await res.json());
+        setPassword("");
+        setAuthState("authed");
       } catch {
-        setLandingError(`Could not reach the API at ${API_BASE}.`);
+        setAuthError(`Could not reach the API at ${API_BASE}.`);
       } finally {
-        setLandingBusy(false);
+        setAuthBusy(false);
       }
     },
-    [email, persistKey]
+    [mode, email, password]
   );
 
-  const onUseExisting = useCallback(
-    (e: FormEvent) => {
-      e.preventDefault();
-      const trimmed = pasteKey.trim();
-      if (!trimmed) return;
-      setLandingError(null);
-      persistKey(trimmed); // validity is checked by the ensuing data load
-    },
-    [pasteKey, persistKey]
-  );
+  const signOut = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/api/v1/auth/logout`, { ...withCreds, method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    setMe(null);
+    setUsage(null);
+    setKeys(null);
+    setRevealed(null);
+    setAuthState("anon");
+  }, []);
 
   const onCreateKey = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (!apiKey) return;
       try {
         const res = await fetch(`${API_BASE}/api/v1/keys`, {
+          ...withCreds,
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: newKeyName.trim() || "key" }),
         });
         if (!res.ok) {
@@ -167,33 +167,29 @@ export default function Dashboard() {
         const body = await res.json();
         setRevealed(body.apiKey);
         setNewKeyName("");
-        loadData(apiKey);
+        loadData();
       } catch {
         setDataError(`Could not reach the API at ${API_BASE}.`);
       }
     },
-    [apiKey, newKeyName, loadData]
+    [newKeyName, loadData]
   );
 
   const onRevoke = useCallback(
     async (id: string) => {
-      if (!apiKey) return;
       setConfirmRevoke(null);
       try {
-        const res = await fetch(`${API_BASE}/api/v1/keys/${id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${apiKey}` },
-        });
+        const res = await fetch(`${API_BASE}/api/v1/keys/${id}`, { ...withCreds, method: "DELETE" });
         if (!res.ok && res.status !== 404) {
           setDataError(await apiErrorMessage(res, "Could not revoke key"));
           return;
         }
-        loadData(apiKey);
+        loadData();
       } catch {
         setDataError(`Could not reach the API at ${API_BASE}.`);
       }
     },
-    [apiKey, loadData]
+    [loadData]
   );
 
   const copyRevealed = useCallback(() => {
@@ -207,68 +203,85 @@ export default function Dashboard() {
     );
   }, [revealed]);
 
-  if (!ready) return null; // avoid a hydration flash before we know if a key is stored
+  if (authState === "loading") {
+    return <p style={{ color: "var(--muted)" }}>Loading…</p>;
+  }
 
-  // ---- Landing (no key) ----------------------------------------------------
-  if (!apiKey) {
+  // ---- Signed out: sign in / sign up --------------------------------------
+  if (authState === "anon") {
     return (
-      <div>
-        {landingError && (
-          <div className="result error" style={{ marginTop: 0 }}>
-            <p style={{ margin: 0 }}>{landingError}</p>
-          </div>
-        )}
-        <div className="dash-cols">
-          <div className="card">
-            <h3>Create an account</h3>
-            <p style={{ marginBottom: 16 }}>
-              Get an API key on the free plan — 100 scans/month, no card required.
-            </p>
-            <form onSubmit={onSignup}>
-              <label className="field">
-                <span>Email</span>
-                <input
-                  className="input"
-                  type="email"
-                  required
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-              <button className="btn btn-primary" type="submit" disabled={landingBusy}>
-                {landingBusy ? "Creating…" : "Create account & get key"}
-              </button>
-            </form>
+      <div className="auth-wrap">
+        <div className="card">
+          <div className="auth-tabs">
+            <button
+              className={`auth-tab${mode === "signin" ? " active" : ""}`}
+              onClick={() => {
+                setMode("signin");
+                setAuthError(null);
+              }}
+            >
+              Sign in
+            </button>
+            <button
+              className={`auth-tab${mode === "signup" ? " active" : ""}`}
+              onClick={() => {
+                setMode("signup");
+                setAuthError(null);
+              }}
+            >
+              Sign up
+            </button>
           </div>
 
-          <div className="card">
-            <h3>Already have a key?</h3>
-            <p style={{ marginBottom: 16 }}>
-              Paste an existing <code>gav_live_…</code> key to view its usage and manage keys.
-            </p>
-            <form onSubmit={onUseExisting}>
-              <label className="field">
-                <span>API key</span>
-                <input
-                  className="input"
-                  type="password"
-                  placeholder="gav_live_…"
-                  value={pasteKey}
-                  onChange={(e) => setPasteKey(e.target.value)}
-                />
-              </label>
-              <button className="btn btn-ghost" type="submit">
-                Open dashboard
-              </button>
-            </form>
-          </div>
+          {authError && (
+            <div className="result error" style={{ marginTop: 0, marginBottom: 14 }}>
+              <p style={{ margin: 0 }}>{authError}</p>
+            </div>
+          )}
+
+          <form onSubmit={onAuth}>
+            <label className="field">
+              <span>Email</span>
+              <input
+                className="input"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Password{mode === "signup" ? " (at least 8 characters)" : ""}</span>
+              <input
+                className="input"
+                type="password"
+                required
+                minLength={mode === "signup" ? 8 : undefined}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+            <button className="btn btn-primary" type="submit" disabled={authBusy} style={{ width: "100%" }}>
+              {authBusy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
+            </button>
+          </form>
+
+          <div className="auth-divider"><span>or</span></div>
+
+          <button className="btn btn-ghost" style={{ width: "100%" }} disabled title="Available soon">
+            <span aria-hidden style={{ marginRight: 8 }}>G</span> Continue with Google
+            <span className="muted-sm" style={{ marginLeft: 8 }}>(soon)</span>
+          </button>
         </div>
       </div>
     );
   }
 
-  // ---- Dashboard (key present) --------------------------------------------
+  // ---- Signed in ----------------------------------------------------------
   const pct =
     usage && usage.scansQuota > 0
       ? Math.min(100, Math.round((usage.scansUsed / usage.scansQuota) * 100))
@@ -295,8 +308,9 @@ export default function Dashboard() {
       )}
 
       <div className="dash-head">
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {usage && <span className="badge">{usage.plan} plan</span>}
+          {me && <span className="muted-sm">{me.email}</span>}
         </div>
         <button className="btn btn-ghost btn-sm" onClick={signOut}>
           Sign out
@@ -322,10 +336,7 @@ export default function Dashboard() {
               </span>
             </p>
             <div className="meter">
-              <div
-                className={`meter-fill${pct >= 100 ? " full" : ""}`}
-                style={{ width: `${pct}%` }}
-              />
+              <div className={`meter-fill${pct >= 100 ? " full" : ""}`} style={{ width: `${pct}%` }} />
             </div>
           </>
         ) : null}
@@ -333,6 +344,9 @@ export default function Dashboard() {
 
       <div className="card">
         <h3>API keys</h3>
+        <p className="muted-sm" style={{ margin: "0 0 12px" }}>
+          Use a key as <code>Authorization: Bearer …</code> to call the API.
+        </p>
         <form onSubmit={onCreateKey} className="keyform">
           <input
             className="input"
@@ -383,7 +397,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <p style={{ color: "var(--muted)", margin: "8px 0 0" }}>
-            {loading ? "Loading…" : "No keys yet."}
+            {loading ? "Loading…" : "No keys yet — create one above."}
           </p>
         )}
       </div>

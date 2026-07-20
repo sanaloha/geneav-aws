@@ -2,10 +2,9 @@ package com.geneav.scan.controller;
 
 import com.geneav.scan.account.Account;
 import com.geneav.scan.account.ApiKey;
-import com.geneav.scan.account.ApiKeyAuthFilter;
 import com.geneav.scan.account.ApiKeyService;
 import com.geneav.scan.account.AccountService;
-import com.geneav.scan.account.AuthenticatedClient;
+import com.geneav.scan.account.CurrentAccount;
 import com.geneav.scan.dto.AccountDtos.CreateKeyRequest;
 import com.geneav.scan.dto.AccountDtos.CreatedKeyResponse;
 import com.geneav.scan.dto.AccountDtos.KeySummary;
@@ -45,11 +44,14 @@ public class AccountController {
     private final AccountService accounts;
     private final UsageService usage;
     private final PlanCatalog plans;
+    private final CurrentAccount currentAccount;
 
-    public AccountController(AccountService accounts, UsageService usage, PlanCatalog plans) {
+    public AccountController(AccountService accounts, UsageService usage, PlanCatalog plans,
+                            CurrentAccount currentAccount) {
         this.accounts = accounts;
         this.usage = usage;
         this.plans = plans;
+        this.currentAccount = currentAccount;
     }
 
     @Operation(summary = "Sign up", description = "Creates an account and returns its first API key (shown once).")
@@ -66,7 +68,7 @@ public class AccountController {
     @Operation(summary = "List API keys", description = "Lists the caller's API keys (secrets are never returned).")
     @GetMapping(value = "/keys", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<KeySummary> listKeys(HttpServletRequest request) {
-        UUID accountId = requireAuth(request).account().getId();
+        UUID accountId = requireAccount(request).getId();
         return accounts.listKeys(accountId).stream().map(AccountController::toSummary).toList();
     }
 
@@ -74,7 +76,7 @@ public class AccountController {
     @PostMapping(value = "/keys", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedKeyResponse createKey(@RequestBody(required = false) CreateKeyRequest body, HttpServletRequest request) {
-        UUID accountId = requireAuth(request).account().getId();
+        UUID accountId = requireAccount(request).getId();
         ApiKeyService.IssuedKey key = accounts.createKey(accountId, body == null ? null : body.name());
         return new CreatedKeyResponse(key.record().getId(), key.record().getName(),
                 key.plaintext(), key.record().getKeyPrefix());
@@ -84,22 +86,22 @@ public class AccountController {
     @DeleteMapping(value = "/keys/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeKey(@PathVariable("id") UUID id, HttpServletRequest request) {
-        UUID accountId = requireAuth(request).account().getId();
+        UUID accountId = requireAccount(request).getId();
         accounts.revokeKey(accountId, id);
     }
 
     @Operation(summary = "Usage this month", description = "Current-month scan usage against the plan quota.")
     @GetMapping(value = "/usage", produces = MediaType.APPLICATION_JSON_VALUE)
     public UsageResponse usage(HttpServletRequest request) {
-        Account account = requireAuth(request).account();
+        Account account = requireAccount(request);
         long quota = plans.resolve(account.getPlan()).getMonthlyScanQuota();
         long used = usage.currentCount(account.getId(), "scan");
         return new UsageResponse(account.getPlan(), usage.currentPeriod(), used, quota, Math.max(0, quota - used));
     }
 
-    private AuthenticatedClient requireAuth(HttpServletRequest request) {
-        return ApiKeyAuthFilter.current(request).orElseThrow(() -> new ScanException(HttpStatus.UNAUTHORIZED,
-                "API key required. Send 'Authorization: Bearer gav_live_...'."));
+    private Account requireAccount(HttpServletRequest request) {
+        return currentAccount.resolve(request).orElseThrow(() -> new ScanException(HttpStatus.UNAUTHORIZED,
+                "Sign in or send an 'Authorization: Bearer gav_live_...' API key."));
     }
 
     private static KeySummary toSummary(ApiKey key) {

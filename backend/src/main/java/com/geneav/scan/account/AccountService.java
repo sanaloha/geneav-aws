@@ -3,6 +3,7 @@ package com.geneav.scan.account;
 import com.geneav.scan.plan.PlanCatalog;
 import com.geneav.scan.web.ScanException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/** Self-serve account provisioning and API-key management. */
+/** Self-serve account provisioning, password auth, and API-key management. */
 @Service
 public class AccountService {
 
@@ -19,13 +20,48 @@ public class AccountService {
     private final ApiKeyRepository apiKeys;
     private final ApiKeyService apiKeyService;
     private final PlanCatalog plans;
+    private final PasswordEncoder passwordEncoder;
 
     public AccountService(AccountRepository accounts, ApiKeyRepository apiKeys,
-                          ApiKeyService apiKeyService, PlanCatalog plans) {
+                          ApiKeyService apiKeyService, PlanCatalog plans, PasswordEncoder passwordEncoder) {
         this.accounts = accounts;
         this.apiKeys = apiKeys;
         this.apiKeyService = apiKeyService;
         this.plans = plans;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    /** Creates a password-backed account for the dashboard (no API key issued yet). */
+    @Transactional
+    public Account signupWithPassword(String rawEmail, String rawPassword) {
+        String email = normalizeEmail(rawEmail);
+        if (rawPassword == null || rawPassword.length() < 8) {
+            throw new ScanException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters.");
+        }
+        if (accounts.existsByEmail(email)) {
+            throw new ScanException(HttpStatus.CONFLICT, "An account with that email already exists.");
+        }
+        Account account = new Account(UUID.randomUUID(), email, plans.defaultPlanKey(), "active", Instant.now());
+        account.setAuthProvider("password");
+        account.setPasswordHash(passwordEncoder.encode(rawPassword));
+        return accounts.save(account);
+    }
+
+    /** Verifies email + password, returning the account or throwing a generic 401. */
+    @Transactional(readOnly = true)
+    public Account authenticatePassword(String rawEmail, String rawPassword) {
+        ScanException invalid = new ScanException(HttpStatus.UNAUTHORIZED, "Invalid email or password.");
+        if (rawEmail == null || rawPassword == null) {
+            throw invalid;
+        }
+        Account account = accounts.findByEmail(normalizeEmail(rawEmail)).orElseThrow(() -> invalid);
+        if (account.getPasswordHash() == null || !passwordEncoder.matches(rawPassword, account.getPasswordHash())) {
+            throw invalid;
+        }
+        if (!account.isActive()) {
+            throw new ScanException(HttpStatus.FORBIDDEN, "This account is not active.");
+        }
+        return account;
     }
 
     public record SignupResult(Account account, ApiKeyService.IssuedKey firstKey) {

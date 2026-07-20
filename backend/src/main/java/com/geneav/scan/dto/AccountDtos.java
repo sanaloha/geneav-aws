@@ -34,4 +34,18 @@ public final class AccountDtos {
 
     public record UsageResponse(String plan, String period, long scansUsed, long scansQuota, long scansRemaining) {
     }
+
+    public record SignupPasswordRequest(
+            @NotBlank(message = "email is required") @Email(message = "a valid email is required") String email,
+            @NotBlank(message = "password is required") String password) {
+    }
+
+    public record LoginRequest(
+            @NotBlank(message = "email is required") String email,
+            @NotBlank(message = "password is required") String password) {
+    }
+
+    /** The currently signed-in account (dashboard session). */
+    public record MeResponse(String email, String plan, String authProvider) {
+    }
 }

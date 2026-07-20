@@ -20,9 +20,11 @@ client library) and exposes:
 |--------|-------------------|-----------------------------------------------|
 | POST   | `/api/v1/scan`    | Upload a document (`multipart` `file`), get a JSON verdict |
 | GET    | `/api/v1/health`  | Reports API + engine readiness                |
-| POST   | `/api/v1/signup`  | Create an account, receive your first API key |
-| GET    | `/api/v1/usage`   | Current-month scan usage vs. plan quota (auth) |
-| GET/POST/DELETE | `/api/v1/keys` | List / create / revoke API keys (auth)    |
+| POST   | `/api/v1/signup`  | Create an account, receive your first API key (programmatic) |
+| POST   | `/api/v1/auth/signup` · `/auth/login` · `/auth/logout` | Dashboard password auth (session cookie) |
+| GET    | `/api/v1/auth/me` | The signed-in account, or 401                 |
+| GET    | `/api/v1/usage`   | Current-month scan usage vs. plan quota (session or key) |
+| GET/POST/DELETE | `/api/v1/keys` | List / create / revoke API keys (session or key) |
 | GET    | `/docs`           | Swagger UI                                     |
 | GET    | `/api-docs`       | OpenAPI JSON                                   |
 
@@ -164,6 +166,10 @@ curl http://localhost:8080/api/v1/keys   -H "Authorization: Bearer gav_live_..."
 curl -X POST   http://localhost:8080/api/v1/keys      -H "Authorization: Bearer gav_live_..." -d '{"name":"ci"}'
 curl -X DELETE http://localhost:8080/api/v1/keys/{id} -H "Authorization: Bearer gav_live_..."
 ```
+
+Prefer a UI? The **dashboard** at `/dashboard` lets you sign up / sign in with an
+email + password (Google login coming next) and manage keys + usage from a browser
+session (secure HttpOnly cookie) — no need to handle a raw key yourself.
 
 Keys are stored only as SHA-256 hashes — the plaintext is shown once, at creation.
 Response codes: **401** missing/invalid key · **402** monthly quota exhausted ·

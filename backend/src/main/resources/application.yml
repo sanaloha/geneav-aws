@@ -1,5 +1,11 @@
 server:
   port: 8080
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax   # not sent on cross-site requests -> our CSRF mitigation
+        # 'secure' is left to Spring's default (set automatically over HTTPS in prod).
 
 spring:
   application:
