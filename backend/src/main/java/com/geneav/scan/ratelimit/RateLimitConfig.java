@@ -1,6 +1,7 @@
 package com.geneav.scan.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.geneav.scan.plan.PlanCatalog;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -19,9 +20,9 @@ public class RateLimitConfig {
 
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(
-            RateLimiterService limiter, RateLimitProperties props, ObjectMapper objectMapper) {
+            RateLimiterService limiter, RateLimitProperties props, PlanCatalog plans, ObjectMapper objectMapper) {
         FilterRegistrationBean<RateLimitFilter> registration =
-                new FilterRegistrationBean<>(new RateLimitFilter(limiter, props, objectMapper));
+                new FilterRegistrationBean<>(new RateLimitFilter(limiter, props, plans, objectMapper));
         registration.addUrlPatterns("/api/v1/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         registration.setName("rateLimitFilter");

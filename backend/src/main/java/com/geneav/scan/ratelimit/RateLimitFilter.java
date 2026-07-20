@@ -1,6 +1,10 @@
 package com.geneav.scan.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.geneav.scan.account.ApiKeyAuthFilter;
+import com.geneav.scan.account.AuthenticatedClient;
+import com.geneav.scan.plan.PlanCatalog;
+import com.geneav.scan.plan.PlanProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,11 +43,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimiterService limiter;
     private final RateLimitProperties props;
+    private final PlanCatalog plans;
     private final ObjectMapper objectMapper;
 
-    public RateLimitFilter(RateLimiterService limiter, RateLimitProperties props, ObjectMapper objectMapper) {
+    public RateLimitFilter(RateLimiterService limiter, RateLimitProperties props,
+                           PlanCatalog plans, ObjectMapper objectMapper) {
         this.limiter = limiter;
         this.props = props;
+        this.plans = plans;
         this.objectMapper = objectMapper;
     }
 
@@ -58,8 +65,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
         String type = typeOf(path);
-        RateLimitProperties.Limit limit = limitFor(type);
-        String key = type + ":" + clientIp(request);
+
+        // Authenticated clients are throttled by their plan and keyed by account;
+        // anonymous clients fall back to the free per-IP budgets.
+        AuthenticatedClient client = ApiKeyAuthFilter.current(request).orElse(null);
+        RateLimitProperties.Limit limit;
+        String key;
+        if (client != null) {
+            PlanProperties.Plan plan = plans.resolve(client.account().getPlan());
+            limit = new RateLimitProperties.Limit(plan.getBurst(), plan.getRatePerMinute());
+            key = "acct:" + client.account().getId() + ":" + type;
+        } else {
+            limit = limitFor(type);
+            key = type + ":" + clientIp(request);
+        }
 
         if (!limiter.tryAcquire(key, limit)) {
             reject(request, response, limiter.retryAfterSeconds(key, limit),

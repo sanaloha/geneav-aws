@@ -9,6 +9,20 @@ spring:
       # Reject uploads larger than this -> handled as HTTP 413
       max-file-size: 25MB
       max-request-size: 26MB
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/geneav}
+    username: ${SPRING_DATASOURCE_USERNAME:geneav}
+    password: ${SPRING_DATASOURCE_PASSWORD:geneav}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only validates entities against it.
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 geneav:
   clamav:
@@ -41,6 +55,20 @@ geneav:
     # Global cap on simultaneous scans, protecting ClamAV's memory footprint.
     scan-max-concurrent: ${GENEAV_RATELIMIT_SCAN_CONCURRENCY:4}
     scan-acquire-timeout-ms: ${GENEAV_RATELIMIT_SCAN_ACQUIRE_TIMEOUT_MS:2000}
+  plans:
+    # Which plan a newly signed-up account gets.
+    default-plan: free
+    # Commercial tiers. monthly-scan-quota caps billable scans per calendar month
+    # (402 when exhausted); rate-per-minute / burst are this plan's token bucket.
+    definitions:
+      free:
+        monthly-scan-quota: ${GENEAV_PLAN_FREE_QUOTA:100}
+        rate-per-minute: ${GENEAV_PLAN_FREE_RPM:10}
+        burst: ${GENEAV_PLAN_FREE_BURST:10}
+      pro:
+        monthly-scan-quota: ${GENEAV_PLAN_PRO_QUOTA:100000}
+        rate-per-minute: ${GENEAV_PLAN_PRO_RPM:120}
+        burst: ${GENEAV_PLAN_PRO_BURST:60}
 
 springdoc:
   swagger-ui:

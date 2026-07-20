@@ -48,6 +48,13 @@ services:
     # or it gets OOM-killed mid-scan. This is the main driver of VM sizing (use B2ms/8GiB).
     mem_limit: 3g
 
+  postgres:
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      # No dev fallback in prod: fail fast if the password is not set in .env.prod.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+
 volumes:
   caddy-data:
   caddy-config:

@@ -20,6 +20,9 @@ client library) and exposes:
 |--------|-------------------|-----------------------------------------------|
 | POST   | `/api/v1/scan`    | Upload a document (`multipart` `file`), get a JSON verdict |
 | GET    | `/api/v1/health`  | Reports API + engine readiness                |
+| POST   | `/api/v1/signup`  | Create an account, receive your first API key |
+| GET    | `/api/v1/usage`   | Current-month scan usage vs. plan quota (auth) |
+| GET/POST/DELETE | `/api/v1/keys` | List / create / revoke API keys (auth)    |
 | GET    | `/docs`           | Swagger UI                                     |
 | GET    | `/api-docs`       | OpenAPI JSON                                   |
 
@@ -140,6 +143,35 @@ Chat is **disabled until `OPENAI_API_KEY` is set** on the server; until then
 `/chat` returns `503` and the widget shows that it is unconfigured. Check
 availability with `GET /api/v1/chat/health`.
 
+## Commercial API — accounts, keys & quotas
+
+The scan and chat endpoints are usable **anonymously** (free tier, throttled per
+IP). For higher, metered access, callers authenticate with an API key.
+
+```bash
+# 1. Sign up — returns your first key ONCE (store it; it is not recoverable)
+curl -X POST http://localhost:8080/api/v1/signup \
+  -H "Content-Type: application/json" -d '{"email":"you@example.com"}'
+# {"accountId":"...","email":"you@example.com","plan":"free","apiKey":"gav_live_...","keyPrefix":"gav_live_...."}
+
+# 2. Call the API with the key — usage is metered against your plan quota
+curl -X POST http://localhost:8080/api/v1/scan \
+  -H "Authorization: Bearer gav_live_..." -F "file=@invoice.pdf"
+
+# 3. Check usage / manage keys
+curl http://localhost:8080/api/v1/usage  -H "Authorization: Bearer gav_live_..."
+curl http://localhost:8080/api/v1/keys   -H "Authorization: Bearer gav_live_..."
+curl -X POST   http://localhost:8080/api/v1/keys      -H "Authorization: Bearer gav_live_..." -d '{"name":"ci"}'
+curl -X DELETE http://localhost:8080/api/v1/keys/{id} -H "Authorization: Bearer gav_live_..."
+```
+
+Keys are stored only as SHA-256 hashes — the plaintext is shown once, at creation.
+Response codes: **401** missing/invalid key · **402** monthly quota exhausted ·
+**429** rate limited. Plans (`free`, `pro`, …) and their quotas/rates are defined
+in `application.yml` under `geneav.plans` and are env-overridable. Accounts, keys,
+and usage live in **PostgreSQL** (schema managed by Flyway); billing/payment
+integration is a later slice.
+
 ## Testing with Postman
 
 1. **New request** → set method to **POST** and URL to
@@ -186,6 +218,14 @@ cd backend && mvn test
 | Scan burst / per-min | `GENEAV_RATELIMIT_SCAN_CAPACITY` / `GENEAV_RATELIMIT_SCAN_RPM` | `10` / `10` |
 | Chat burst / per-min | `GENEAV_RATELIMIT_CHAT_CAPACITY` / `GENEAV_RATELIMIT_CHAT_RPM` | `15` / `15` |
 | Max concurrent scans | `GENEAV_RATELIMIT_SCAN_CONCURRENCY` | `4`             |
+| Postgres JDBC URL    | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/geneav` |
+| Postgres user / pass | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | `geneav` / `geneav` |
+| Free plan quota / rpm| `GENEAV_PLAN_FREE_QUOTA` / `GENEAV_PLAN_FREE_RPM` | `100` / `10` |
+| Pro plan quota / rpm | `GENEAV_PLAN_PRO_QUOTA` / `GENEAV_PLAN_PRO_RPM` | `100000` / `120` |
+
+> In production, set a strong `POSTGRES_PASSWORD` in the VM's `.env.prod` (the prod
+> compose refuses to start without it). The Postgres data lives in the
+> `postgres-data` Docker volume, which survives redeploys.
 
 > The chat assistant needs `OPENAI_API_KEY`. Locally, export it before starting
 > the stack (e.g. `OPENAI_API_KEY=sk-... docker compose up`); in production put it
@@ -258,9 +298,12 @@ be deleted.
 
 Implemented: scan + health endpoints, ClamAV integration, type/size guards
 (400/413/415), OpenAPI docs, responsive marketing site with a live "try a scan"
-page, and **per-client rate limiting + scan concurrency caps** (429 on breach).
+page, **per-client rate limiting + scan concurrency caps** (429 on breach), and
+the **commercial foundation** — accounts, hashed API keys, plan-based limits, and
+monthly usage metering with quota enforcement (Postgres + Flyway).
 
-Out of scope (per ticket): user accounts / API keys, billing.
+Out of scope for now: billing / payment processing (Stripe), a self-serve
+dashboard UI. These build on the metering foundation above.
 
 ## License
 

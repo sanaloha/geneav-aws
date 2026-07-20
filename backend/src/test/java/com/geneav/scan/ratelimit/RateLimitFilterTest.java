@@ -1,6 +1,8 @@
 package com.geneav.scan.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.geneav.scan.plan.PlanCatalog;
+import com.geneav.scan.plan.PlanProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -36,7 +38,8 @@ class RateLimitFilterTest {
 
     private MockMvc mvcWith(RateLimitProperties props) {
         RateLimiterService limiter = new RateLimiterService(props);
-        RateLimitFilter filter = new RateLimitFilter(limiter, props, new ObjectMapper());
+        PlanCatalog plans = new PlanCatalog(new PlanProperties());
+        RateLimitFilter filter = new RateLimitFilter(limiter, props, plans, new ObjectMapper());
         return MockMvcBuilders.standaloneSetup(new StubController())
                 .addFilters(filter)
                 .build();
