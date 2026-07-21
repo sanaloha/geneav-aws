@@ -3,8 +3,11 @@ package com.geneav.scan.controller;
 import com.geneav.scan.account.Account;
 import com.geneav.scan.account.AccountService;
 import com.geneav.scan.account.CurrentAccount;
+import com.geneav.scan.account.PasswordResetService;
+import com.geneav.scan.dto.AccountDtos.ForgotPasswordRequest;
 import com.geneav.scan.dto.AccountDtos.LoginRequest;
 import com.geneav.scan.dto.AccountDtos.MeResponse;
+import com.geneav.scan.dto.AccountDtos.ResetPasswordRequest;
 import com.geneav.scan.dto.AccountDtos.SignupPasswordRequest;
 import com.geneav.scan.mail.MailService;
 import com.geneav.scan.web.ScanException;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -45,12 +49,15 @@ public class AuthController {
     private final AccountService accounts;
     private final CurrentAccount currentAccount;
     private final MailService mail;
+    private final PasswordResetService passwordResets;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
-    public AuthController(AccountService accounts, CurrentAccount currentAccount, MailService mail) {
+    public AuthController(AccountService accounts, CurrentAccount currentAccount, MailService mail,
+                          PasswordResetService passwordResets) {
         this.accounts = accounts;
         this.currentAccount = currentAccount;
         this.mail = mail;
+        this.passwordResets = passwordResets;
     }
 
     @Operation(summary = "Sign up with a password", description = "Creates a password account and starts a session.")
@@ -72,6 +79,31 @@ public class AuthController {
         Account account = accounts.authenticatePassword(req.email(), req.password());
         establishSession(account, request, response);
         return toMe(account);
+    }
+
+    @Operation(summary = "Request a password reset",
+            description = "Emails a single-use reset link that expires in 10 minutes. Always returns 202, "
+                    + "whether or not the address has an account, so it cannot be used to discover customers.")
+    @PostMapping(value = "/forgot-password", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        passwordResets.request(req.email()).ifPresent(issued -> mail.sendPasswordReset(
+                issued.account().getEmail(), issued.token(), passwordResets.tokenTtl().toMinutes()));
+    }
+
+    @Operation(summary = "Set a new password",
+            description = "Redeems a reset token and replaces the password. The token is single-use.")
+    @PostMapping(value = "/reset-password", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req, HttpServletRequest request) {
+        Account account = passwordResets.reset(req.token(), req.password());
+        mail.sendPasswordChanged(account.getEmail());
+        // Drop any session on this browser so the user signs in with the new password.
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        SecurityContextHolder.clearContext();
     }
 
     @Operation(summary = "Sign out", description = "Ends the current dashboard session.")
@@ -100,8 +132,10 @@ public class AuthController {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
-        request.getSession(true);
+        HttpSession session = request.getSession(true);
         request.changeSessionId(); // rotate to avoid session fixation
+        // Lets a later password change invalidate sessions issued before it.
+        session.setAttribute(CurrentAccount.AUTHENTICATED_AT, Instant.now());
         securityContextRepository.saveContext(context, request, response);
     }
 

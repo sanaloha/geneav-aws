@@ -40,6 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String SCAN_PATH = "/api/v1/scan";
     private static final String CHAT_PATH = "/api/v1/chat";
+    private static final String AUTH_PREFIX = "/api/v1/auth/";
 
     private final RateLimiterService limiter;
     private final RateLimitProperties props;
@@ -71,7 +72,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         AuthenticatedClient client = ApiKeyAuthFilter.current(request).orElse(null);
         RateLimitProperties.Limit limit;
         String key;
-        if (client != null) {
+        if ("auth".equals(type)) {
+            // Always per-IP, never per-plan: a generous plan must not buy a higher
+            // password-guessing or reset-email budget.
+            limit = props.getAuth();
+            key = "auth:" + clientIp(request);
+        } else if (client != null) {
             PlanProperties.Plan plan = plans.resolve(client.account().getPlan());
             limit = new RateLimitProperties.Limit(plan.getBurst(), plan.getRatePerMinute());
             key = "acct:" + client.account().getId() + ":" + type;
@@ -117,6 +123,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return !path.startsWith("/api/v1/")
                 || path.equals("/api/v1/health")
                 || path.equals("/api/v1/chat/health")
+                // Polled on every dashboard page load; throttling it would break
+                // the UI long before it deterred anyone.
+                || path.equals("/api/v1/auth/me")
                 || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 
@@ -126,6 +135,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (CHAT_PATH.equals(path)) {
             return "chat";
+        }
+        if (path.startsWith(AUTH_PREFIX)) {
+            return "auth";
         }
         return "other";
     }

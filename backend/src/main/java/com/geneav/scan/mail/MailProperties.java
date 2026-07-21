@@ -21,6 +21,9 @@ public class MailProperties {
     /** Deep link included in the signup acknowledgement. */
     private String loginUrl = "https://geneav.com/login";
 
+    /** Base of the password-reset link; the token is appended as {@code ?token=...}. */
+    private String resetUrl = "https://geneav.com/reset-password";
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -51,5 +54,13 @@ public class MailProperties {
 
     public void setLoginUrl(String loginUrl) {
         this.loginUrl = loginUrl;
+    }
+
+    public String getResetUrl() {
+        return resetUrl;
+    }
+
+    public void setResetUrl(String resetUrl) {
+        this.resetUrl = resetUrl;
     }
 }

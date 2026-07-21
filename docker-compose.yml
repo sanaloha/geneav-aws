@@ -55,6 +55,7 @@ services:
       GENEAV_MAIL_FROM: ${GENEAV_MAIL_FROM:-no-reply@geneav.com}
       GENEAV_MAIL_FROM_NAME: ${GENEAV_MAIL_FROM_NAME:-geneav}
       GENEAV_MAIL_LOGIN_URL: ${GENEAV_MAIL_LOGIN_URL:-http://localhost:3000/login}
+      GENEAV_MAIL_RESET_URL: ${GENEAV_MAIL_RESET_URL:-http://localhost:3000/reset-password}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
