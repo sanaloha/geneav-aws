@@ -68,7 +68,11 @@ public class AccountService {
     public record SignupResult(Account account, ApiKeyService.IssuedKey firstKey) {
     }
 
-    /** Creates an account on the default plan and issues its first API key. */
+    /**
+     * Creates an account on the default plan and issues its first API key. No
+     * password is set: the account is identified by its key until the holder
+     * claims a password through the reset flow.
+     */
     @Transactional
     public SignupResult signup(String rawEmail) {
         String email = normalizeEmail(rawEmail);
@@ -76,6 +80,10 @@ public class AccountService {
             throw new ScanException(HttpStatus.CONFLICT, "An account with that email already exists.");
         }
         Account account = new Account(UUID.randomUUID(), email, plans.defaultPlanKey(), "active", Instant.now());
+        // Not "password" (the field default): that would claim a password this
+        // path never sets, leaving a row that can neither sign in nor be told
+        // apart from a real password account.
+        account.setAuthProvider("apikey");
         accounts.save(account);
         ApiKeyService.IssuedKey key = apiKeyService.issue(account.getId(), "default");
         return new SignupResult(account, key);

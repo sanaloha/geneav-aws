@@ -73,12 +73,14 @@ public class PasswordResetService {
             return Optional.empty();
         }
         Account account = found.get();
-        if (account.getPasswordHash() == null) {
-            // A federated (e.g. Google) account has no password to reset. Resetting
-            // would silently convert it to a password account, so refuse quietly.
-            log.info("Password reset requested for a passwordless account {}; responding as if sent", account.getId());
+        if (account.isFederated()) {
+            // A federated (e.g. Google) account authenticates elsewhere. Resetting
+            // would silently add a second, local way in, so refuse quietly.
+            log.info("Password reset requested for a federated account {}; responding as if sent", account.getId());
             return Optional.empty();
         }
+        // A local account with no password hash yet — provisioned for API-key use —
+        // is deliberately allowed through: reset is how it claims its first password.
 
         Instant now = Instant.now();
 

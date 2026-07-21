@@ -70,14 +70,48 @@ class PasswordResetServiceTest {
         verify(tokens, never()).save(any());
     }
 
-    @Test
-    void requestIsSilentForPasswordlessAccount() {
-        Account oauthOnly = new Account(UUID.randomUUID(), "a@b.com", "free", "active", Instant.now());
-        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(oauthOnly));
+    /** An account with no password hash yet, on the given provider. */
+    private Account passwordless(String authProvider) {
+        Account account = new Account(UUID.randomUUID(), "a@b.com", "free", "active", Instant.now());
+        account.setAuthProvider(authProvider);
+        return account;
+    }
 
-        // Resetting would silently turn a Google account into a password account.
+    @Test
+    void requestIsSilentForFederatedAccount() {
+        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(passwordless("google")));
+
+        // Resetting would add a local password to a Google account.
         assertThat(service.request("a@b.com")).isEmpty();
         verify(tokens, never()).save(any());
+    }
+
+    @Test
+    void requestIsSilentForAnUnrecognisedProvider() {
+        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(passwordless("github")));
+
+        // Fail closed: a provider nobody has classified is treated as federated.
+        assertThat(service.request("a@b.com")).isEmpty();
+        verify(tokens, never()).save(any());
+    }
+
+    @Test
+    void requestIssuesTokenForApiKeyOnlyAccount() {
+        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(passwordless("apikey")));
+
+        // Reset is how a key-only account claims its first password.
+        assertThat(service.request("a@b.com")).isPresent();
+        verify(tokens).save(any());
+    }
+
+    @Test
+    void requestIssuesTokenForPasswordAccountMissingItsHash() {
+        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(passwordless("password")));
+
+        // Regression: accounts left hashless by the key-only signup path used to be
+        // mistaken for federated ones, so their reset mail was never sent.
+        assertThat(service.request("a@b.com")).isPresent();
+        verify(tokens).save(any());
     }
 
     @Test
@@ -121,6 +155,19 @@ class PasswordResetServiceTest {
         assertThat(encoder.matches(STRONG, account.getPasswordHash())).isTrue();
         assertThat(token.getUsedAt()).isNotNull();
         verify(tokens).invalidateOutstanding(eq(account.getId()), any());
+    }
+
+    @Test
+    void resetSetsTheFirstPasswordOnAnAccountThatHadNone() {
+        Account account = passwordless("apikey");
+        PasswordResetToken token = storedToken(account, "tok", Instant.now().plusSeconds(600));
+        when(tokens.findByTokenHash(ApiKeyService.sha256Hex("tok"))).thenReturn(Optional.of(token));
+        when(accounts.findById(account.getId())).thenReturn(Optional.of(account));
+
+        service.reset("tok", STRONG);
+
+        assertThat(encoder.matches(STRONG, account.getPasswordHash())).isTrue();
+        assertThat(token.getUsedAt()).isNotNull();
     }
 
     @Test
