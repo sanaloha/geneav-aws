@@ -7,6 +7,7 @@ import Badge, { type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import Card from "../ui/Card";
 import { Field, Input } from "../ui/Field";
+import { notifyAuthChanged } from "../lib/authEvents";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
@@ -157,6 +158,7 @@ export default function Dashboard() {
         setMe(await res.json());
         setPassword("");
         setAuthState("authed");
+        notifyAuthChanged();
       } catch {
         setAuthError(`Could not reach the API at ${API_BASE}.`);
       } finally {
@@ -193,19 +195,6 @@ export default function Dashboard() {
     },
     [email]
   );
-
-  const signOut = useCallback(async () => {
-    try {
-      await fetch(`${API_BASE}/api/v1/auth/logout`, { ...withCreds, method: "POST" });
-    } catch {
-      /* ignore */
-    }
-    setMe(null);
-    setUsage(null);
-    setKeys(null);
-    setRevealed(null);
-    setAuthState("anon");
-  }, []);
 
   const onCreateKey = useCallback(
     async (e: FormEvent) => {
@@ -459,14 +448,9 @@ export default function Dashboard() {
         </Card>
       )}
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {usage && <Badge tone="brand">{usage.plan} plan</Badge>}
-          {me && <span className="text-[13px] text-ink-muted">{me.email}</span>}
-        </div>
-        <Button variant="ghost" size="sm" onClick={signOut}>
-          Sign out
-        </Button>
+      <div className="mb-5 flex flex-wrap items-center gap-2.5">
+        {usage && <Badge tone="brand">{usage.plan} plan</Badge>}
+        {me && <span className="text-[13px] text-ink-muted">{me.email}</span>}
       </div>
 
       {dataError && (
