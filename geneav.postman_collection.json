@@ -1,0 +1,85 @@
+{
+  "info": {
+    "name": "geneav — Scan API",
+    "description": "Document malware scanning.\n\nSet the `baseUrl` variable to https://geneav.com for production, or http://localhost:8080 when running the local docker stack.\n\nInteractive docs: https://geneav.com/docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://geneav.com",
+      "description": "API origin. Use http://localhost:8080 against the local stack."
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "description": "A gav_live_... key from the dashboard. Only needed for the metered request."
+    }
+  ],
+  "item": [
+    {
+      "name": "Scan a document (anonymous)",
+      "request": {
+        "method": "POST",
+        "description": "Uploads one document and returns a clean/infected verdict.\n\nThe `file` form field MUST have its type set to File. Do not add a Content-Type header by hand — Postman generates the multipart boundary, and overriding it drops the boundary and breaks the request.\n\nLimits: 25 MB per file. Anonymous requests are rate limited to 10/min per IP.\n\nResponses: 200 completed, 400 missing/empty file, 413 too large, 415 unsupported type, 429 rate limited, 503 scan engine down.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/scan",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "scan"]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "The document to scan."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Scan a document (API key, metered)",
+      "request": {
+        "method": "POST",
+        "description": "Same endpoint, authenticated with an API key so the scan counts against the account's monthly plan quota.\n\nUsage is recorded only after a scan succeeds — failed scans are not billed. Returns 402 once the quota is exhausted (free plan = 100 scans/month).",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{apiKey}}", "type": "string" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/scan",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "scan"]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "The document to scan."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "description": "Reports whether the API and the ClamAV engine are ready. Returns status UP, or DEGRADED when the engine is unreachable.",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        }
+      }
+    }
+  ]
+}
