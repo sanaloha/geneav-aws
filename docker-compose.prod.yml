@@ -41,6 +41,8 @@ services:
     mem_limit: 1g
     environment:
       GENEAV_ALLOWED_ORIGINS: https://${GENEAV_HOST}
+      # Link in the signup acknowledgement email must be the public host.
+      GENEAV_MAIL_LOGIN_URL: https://${GENEAV_HOST}/login
 
   clamav:
     restart: unless-stopped

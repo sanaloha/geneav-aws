@@ -49,6 +49,15 @@ services:
       # when empty, /api/v1/chat returns 503 and the widget shows it's unconfigured.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      # Signup acknowledgement email. Disabled by default: the message is logged
+      # instead of sent, and signup succeeds either way.
+      GENEAV_MAIL_ENABLED: ${GENEAV_MAIL_ENABLED:-false}
+      GENEAV_MAIL_FROM: ${GENEAV_MAIL_FROM:-no-reply@geneav.com}
+      GENEAV_MAIL_LOGIN_URL: ${GENEAV_MAIL_LOGIN_URL:-http://localhost:3000/login}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     depends_on:
       clamav:
         condition: service_healthy

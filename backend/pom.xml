@@ -54,6 +54,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Transactional mail (signup acknowledgement); no-op unless SMTP is configured -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Persistence: accounts, API keys, usage metering -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

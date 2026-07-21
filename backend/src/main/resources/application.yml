@@ -29,6 +29,18 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+  mail:
+    # SMTP transport. Unset by default; see geneav.mail.enabled below.
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:true}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 
 geneav:
   clamav:
@@ -37,6 +49,13 @@ geneav:
     timeout-ms: 30000
   cors:
     allowed-origins: ${GENEAV_ALLOWED_ORIGINS:http://localhost:3000}
+  mail:
+    # Off by default: signup acknowledgements are logged, not sent, until SMTP
+    # is configured. Signup never fails because mail failed.
+    enabled: ${GENEAV_MAIL_ENABLED:false}
+    from: ${GENEAV_MAIL_FROM:no-reply@geneav.com}
+    from-name: ${GENEAV_MAIL_FROM_NAME:geneav}
+    login-url: ${GENEAV_MAIL_LOGIN_URL:http://localhost:3000/login}
   openai:
     # Chat is disabled until an API key is provided; the /chat endpoint then returns 503.
     api-key: ${OPENAI_API_KEY:}

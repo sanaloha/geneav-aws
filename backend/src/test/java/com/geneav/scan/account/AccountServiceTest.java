@@ -27,7 +27,8 @@ class AccountServiceTest {
     private final ApiKeyService apiKeyService = mock(ApiKeyService.class);
     private final PasswordEncoder encoder = new BCryptPasswordEncoder();
     private final PlanCatalog plans = catalog();
-    private final AccountService service = new AccountService(accounts, apiKeys, apiKeyService, plans, encoder);
+    private final AccountService service =
+            new AccountService(accounts, apiKeys, apiKeyService, plans, encoder, new PasswordPolicy());
 
     private PlanCatalog catalog() {
         PlanProperties props = new PlanProperties();
@@ -41,15 +42,15 @@ class AccountServiceTest {
         when(accounts.existsByEmail("a@b.com")).thenReturn(false);
         when(accounts.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        service.signupWithPassword("A@B.com", "supersecret");
+        service.signupWithPassword("A@B.com", "Sup3rsecret!pass");
 
         ArgumentCaptor<Account> saved = ArgumentCaptor.forClass(Account.class);
         verify(accounts).save(saved.capture());
         Account account = saved.getValue();
         assertThat(account.getEmail()).isEqualTo("a@b.com"); // normalized
         assertThat(account.getAuthProvider()).isEqualTo("password");
-        assertThat(account.getPasswordHash()).isNotNull().isNotEqualTo("supersecret");
-        assertThat(encoder.matches("supersecret", account.getPasswordHash())).isTrue();
+        assertThat(account.getPasswordHash()).isNotNull().isNotEqualTo("Sup3rsecret!pass");
+        assertThat(encoder.matches("Sup3rsecret!pass", account.getPasswordHash())).isTrue();
     }
 
     @Test
@@ -63,7 +64,7 @@ class AccountServiceTest {
     @Test
     void signupRejectsDuplicateEmail() {
         when(accounts.existsByEmail("a@b.com")).thenReturn(true);
-        assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "supersecret"))
+        assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "Sup3rsecret!pass"))
                 .isInstanceOf(ScanException.class)
                 .extracting(e -> ((ScanException) e).getStatus())
                 .isEqualTo(HttpStatus.CONFLICT);
@@ -72,16 +73,16 @@ class AccountServiceTest {
     @Test
     void authenticateSucceedsWithCorrectPassword() {
         Account account = new Account(UUID.randomUUID(), "a@b.com", "free", "active", Instant.now());
-        account.setPasswordHash(encoder.encode("supersecret"));
+        account.setPasswordHash(encoder.encode("Sup3rsecret!pass"));
         when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(account));
 
-        assertThat(service.authenticatePassword("a@b.com", "supersecret")).isSameAs(account);
+        assertThat(service.authenticatePassword("a@b.com", "Sup3rsecret!pass")).isSameAs(account);
     }
 
     @Test
     void authenticateRejectsWrongPassword() {
         Account account = new Account(UUID.randomUUID(), "a@b.com", "free", "active", Instant.now());
-        account.setPasswordHash(encoder.encode("supersecret"));
+        account.setPasswordHash(encoder.encode("Sup3rsecret!pass"));
         when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(account));
 
         assertThatThrownBy(() -> service.authenticatePassword("a@b.com", "wrongpass"))
@@ -94,7 +95,7 @@ class AccountServiceTest {
     void authenticateRejectsUnknownEmailWithSameError() {
         when(accounts.findByEmail("nobody@b.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.authenticatePassword("nobody@b.com", "whatever1"))
+        assertThatThrownBy(() -> service.authenticatePassword("nobody@b.com", "Whatever1!pass"))
                 .isInstanceOf(ScanException.class)
                 .extracting(e -> ((ScanException) e).getStatus())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -106,7 +107,7 @@ class AccountServiceTest {
         // no password hash set (e.g. an API-only or future OAuth account)
         when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(oauthOnly));
 
-        assertThatThrownBy(() -> service.authenticatePassword("a@b.com", "whatever1"))
+        assertThatThrownBy(() -> service.authenticatePassword("a@b.com", "Whatever1!pass"))
                 .isInstanceOf(ScanException.class)
                 .extracting(e -> ((ScanException) e).getStatus())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);

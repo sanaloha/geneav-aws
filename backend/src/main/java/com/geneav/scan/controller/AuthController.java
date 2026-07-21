@@ -6,6 +6,7 @@ import com.geneav.scan.account.CurrentAccount;
 import com.geneav.scan.dto.AccountDtos.LoginRequest;
 import com.geneav.scan.dto.AccountDtos.MeResponse;
 import com.geneav.scan.dto.AccountDtos.SignupPasswordRequest;
+import com.geneav.scan.mail.MailService;
 import com.geneav.scan.web.ScanException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,11 +44,13 @@ public class AuthController {
 
     private final AccountService accounts;
     private final CurrentAccount currentAccount;
+    private final MailService mail;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
-    public AuthController(AccountService accounts, CurrentAccount currentAccount) {
+    public AuthController(AccountService accounts, CurrentAccount currentAccount, MailService mail) {
         this.accounts = accounts;
         this.currentAccount = currentAccount;
+        this.mail = mail;
     }
 
     @Operation(summary = "Sign up with a password", description = "Creates a password account and starts a session.")
@@ -57,6 +60,8 @@ public class AuthController {
                              HttpServletRequest request, HttpServletResponse response) {
         Account account = accounts.signupWithPassword(req.email(), req.password());
         establishSession(account, request, response);
+        // Best-effort and asynchronous — a mail failure must not fail the signup.
+        mail.sendSignupAcknowledgement(account.getEmail());
         return toMe(account);
     }
 
