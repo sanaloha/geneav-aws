@@ -1,8 +1,10 @@
 # --- build stage ---
 FROM node:22-alpine AS build
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+# Copy the lockfile too and use `npm ci`, so the image installs the exact
+# resolved versions rather than re-resolving semver ranges on every build.
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time.
 # Passed from docker-compose.prod.yml; falls back to localhost when unset (local dev).

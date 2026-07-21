@@ -1,4 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /*
+ * Legacy hand-written CSS, being migrated to Tailwind file by file. The
+ * @tailwind directives MUST stay above these rules: `.container` and `.grid`
+ * exist in both systems, and source order is what stops the legacy 3-column
+ * `.grid` from winning over a Tailwind `grid-cols-*` utility.
+ *
  * Light palette. Values mirror app/theme.ts — change both together.
  *
  * Two rules worth knowing before editing:
