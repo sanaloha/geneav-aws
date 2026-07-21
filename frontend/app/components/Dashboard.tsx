@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import clsx from "clsx";
+import { AlertTriangle, ArrowLeft, Check, Copy, KeyRound, Mail } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode, type FormEvent } from "react";
+import Badge, { type BadgeTone } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import Card from "../ui/Card";
+import { Field, Input } from "../ui/Field";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
@@ -27,6 +33,16 @@ type KeySummary = {
 // Session cookie auth — every call sends the HttpOnly session cookie.
 const withCreds: RequestInit = { credentials: "include" };
 
+/**
+ * `status` comes straight from the API, so it is mapped explicitly rather than
+ * interpolated into a class name. An unrecognised value previously rendered an
+ * unstyled pill with no warning.
+ */
+const KEY_STATUS_TONE: Record<string, BadgeTone> = {
+  active: "success",
+  revoked: "neutral",
+};
+
 async function apiErrorMessage(res: Response, fallback: string): Promise<string> {
   try {
     const body = await res.json();
@@ -41,6 +57,18 @@ function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+}
+
+function ErrorNote({ children }: { children: ReactNode }) {
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2.5 rounded-[10px] border border-danger-border bg-danger-bg p-3 text-sm text-danger"
+    >
+      <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+      {children}
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -233,43 +261,44 @@ export default function Dashboard() {
   }, [revealed]);
 
   if (authState === "loading") {
-    return <p style={{ color: "var(--muted)" }}>Loading…</p>;
+    return <p className="text-ink-muted">Loading…</p>;
   }
 
   // ---- Signed out: forgot password ----------------------------------------
   if (authState === "anon" && mode === "forgot") {
     return (
-      <div className="auth-wrap">
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Reset your password</h3>
+      <div className="mx-auto max-w-md">
+        <Card>
+          <h2 className="m-0 text-xl font-bold text-ink">Reset your password</h2>
 
           {resetSent ? (
             <>
-              <p style={{ color: "var(--muted)" }}>
-                If an account exists for <strong>{email}</strong>, we&apos;ve sent a reset link to
-                it. The link expires in 10 minutes.
-              </p>
-              <p className="muted-sm">
+              <div className="mt-4 flex items-start gap-2.5 rounded-[10px] border border-success-border bg-success-bg p-3 text-sm text-success">
+                <Mail size={16} className="mt-0.5 shrink-0" aria-hidden />
+                <span>
+                  If an account exists for <strong>{email}</strong>, we&apos;ve sent a reset link
+                  to it. The link expires in 10 minutes.
+                </span>
+              </div>
+              <p className="mt-3 text-[13px] text-ink-muted">
                 Nothing arrived? Check your spam folder, then try again.
               </p>
             </>
           ) : (
             <>
-              <p style={{ color: "var(--muted)", marginTop: 0 }}>
+              <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">
                 Enter your email and we&apos;ll send you a link to set a new password.
               </p>
 
               {authError && (
-                <div className="result error" style={{ marginTop: 0, marginBottom: 14 }}>
-                  <p style={{ margin: 0 }}>{authError}</p>
+                <div className="mt-4">
+                  <ErrorNote>{authError}</ErrorNote>
                 </div>
               )}
 
-              <form onSubmit={onForgot}>
-                <label className="field">
-                  <span>Email</span>
-                  <input
-                    className="input"
+              <form onSubmit={onForgot} className="mt-5">
+                <Field label="Email">
+                  <Input
                     type="email"
                     required
                     autoComplete="email"
@@ -277,26 +306,26 @@ export default function Dashboard() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
-                </label>
-                <button className="btn btn-primary" type="submit" disabled={authBusy} style={{ width: "100%" }}>
+                </Field>
+                <Button type="submit" variant="primary" fullWidth disabled={authBusy}>
                   {authBusy ? "Sending…" : "Send reset link"}
-                </button>
+                </Button>
               </form>
             </>
           )}
 
           <button
-            className="linklike"
-            style={{ marginTop: 14 }}
+            type="button"
             onClick={() => {
               setMode("signin");
               setAuthError(null);
               setResetSent(false);
             }}
+            className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-muted hover:text-brand"
           >
-            ← Back to sign in
+            <ArrowLeft size={14} aria-hidden /> Back to sign in
           </button>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -304,40 +333,36 @@ export default function Dashboard() {
   // ---- Signed out: sign in / sign up --------------------------------------
   if (authState === "anon") {
     return (
-      <div className="auth-wrap">
-        <div className="card">
-          <div className="auth-tabs">
-            <button
-              className={`auth-tab${mode === "signin" ? " active" : ""}`}
-              onClick={() => {
-                setMode("signin");
-                setAuthError(null);
-              }}
-            >
-              Sign in
-            </button>
-            <button
-              className={`auth-tab${mode === "signup" ? " active" : ""}`}
-              onClick={() => {
-                setMode("signup");
-                setAuthError(null);
-              }}
-            >
-              Sign up
-            </button>
+      <div className="mx-auto max-w-md">
+        <Card>
+          <div className="mb-5 flex gap-1.5 rounded-xl border border-line bg-surface-sunken p-1">
+            {(["signin", "signup"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={clsx(
+                  "flex-1 rounded-[9px] py-2 text-sm font-bold transition-colors",
+                  mode === m ? "bg-surface text-ink shadow-sm" : "text-ink-muted hover:text-ink"
+                )}
+                onClick={() => {
+                  setMode(m);
+                  setAuthError(null);
+                }}
+              >
+                {m === "signin" ? "Sign in" : "Sign up"}
+              </button>
+            ))}
           </div>
 
           {authError && (
-            <div className="result error" style={{ marginTop: 0, marginBottom: 14 }}>
-              <p style={{ margin: 0 }}>{authError}</p>
+            <div className="mb-4">
+              <ErrorNote>{authError}</ErrorNote>
             </div>
           )}
 
           <form onSubmit={onAuth}>
-            <label className="field">
-              <span>Email</span>
-              <input
-                className="input"
+            <Field label="Email">
+              <Input
                 type="email"
                 required
                 autoComplete="email"
@@ -345,11 +370,16 @@ export default function Dashboard() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-            </label>
-            <label className="field">
-              <span>Password</span>
-              <input
-                className="input"
+            </Field>
+            <Field
+              label="Password"
+              hint={
+                mode === "signup"
+                  ? "At least 12 characters, mixing three of: lowercase, uppercase, digits, symbols."
+                  : undefined
+              }
+            >
+              <Input
                 type="password"
                 required
                 minLength={mode === "signup" ? 12 : undefined}
@@ -358,38 +388,37 @@ export default function Dashboard() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              {mode === "signup" && (
-                <span className="muted-sm">
-                  At least 12 characters, mixing three of: lowercase, uppercase, digits, symbols.
-                </span>
-              )}
-            </label>
-            <button className="btn btn-primary" type="submit" disabled={authBusy} style={{ width: "100%" }}>
+            </Field>
+            <Button type="submit" variant="primary" fullWidth disabled={authBusy}>
               {authBusy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
-            </button>
+            </Button>
           </form>
 
           {mode === "signin" && (
             <button
-              className="linklike"
-              style={{ marginTop: 12 }}
+              type="button"
               onClick={() => {
                 setMode("forgot");
                 setAuthError(null);
                 setPassword("");
               }}
+              className="mt-3 text-[13px] font-semibold text-ink-muted hover:text-brand"
             >
               Forgot password?
             </button>
           )}
 
-          <div className="auth-divider"><span>or</span></div>
+          <div className="my-4 flex items-center gap-3 text-xs text-ink-subtle">
+            <span className="h-px flex-1 bg-line" />
+            or
+            <span className="h-px flex-1 bg-line" />
+          </div>
 
-          <button className="btn btn-ghost" style={{ width: "100%" }} disabled title="Available soon">
-            <span aria-hidden style={{ marginRight: 8 }}>G</span> Continue with Google
-            <span className="muted-sm" style={{ marginLeft: 8 }}>(soon)</span>
-          </button>
-        </div>
+          <Button variant="secondary" fullWidth disabled title="Available soon">
+            Continue with Google
+            <span className="text-[13px] font-medium text-ink-subtle">(soon)</span>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -403,104 +432,137 @@ export default function Dashboard() {
   return (
     <div>
       {revealed && (
-        <div className="reveal">
-          <h4 style={{ margin: "0 0 6px" }}>Save your API key now</h4>
-          <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 14 }}>
+        <Card tone="success" className="mb-5">
+          <h3 className="m-0 flex items-center gap-2 text-base font-bold text-success">
+            <KeyRound size={18} aria-hidden />
+            Save your API key now
+          </h3>
+          <p className="mb-3 mt-1.5 text-sm text-ink-muted">
             This is the only time it will be shown. Store it somewhere safe.
           </p>
-          <div className="reveal-row">
-            <code className="reveal-key">{revealed}</code>
-            <button className="btn btn-primary btn-sm" onClick={copyRevealed}>
-              {copied ? "Copied ✓" : "Copy"}
-            </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <code className="min-w-[220px] flex-1 break-all rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink">
+              {revealed}
+            </code>
+            <Button variant="primary" size="sm" onClick={copyRevealed}>
+              {copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
           </div>
-          <button className="linklike" onClick={() => setRevealed(null)}>
+          <button
+            type="button"
+            onClick={() => setRevealed(null)}
+            className="mt-3 text-[13px] font-semibold text-ink-muted hover:text-brand"
+          >
             I&apos;ve saved it — dismiss
           </button>
-        </div>
+        </Card>
       )}
 
-      <div className="dash-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {usage && <span className="badge">{usage.plan} plan</span>}
-          {me && <span className="muted-sm">{me.email}</span>}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {usage && <Badge tone="brand">{usage.plan} plan</Badge>}
+          {me && <span className="text-[13px] text-ink-muted">{me.email}</span>}
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={signOut}>
+        <Button variant="ghost" size="sm" onClick={signOut}>
           Sign out
-        </button>
+        </Button>
       </div>
 
       {dataError && (
-        <div className="result error">
-          <p style={{ margin: 0 }}>{dataError}</p>
+        <div className="mb-5">
+          <ErrorNote>{dataError}</ErrorNote>
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 18 }}>
-        <h3>Usage this month {usage && <span className="muted-sm">· {usage.period}</span>}</h3>
+      <Card className="mb-5">
+        <h3 className="m-0 text-base font-bold text-ink">
+          Usage this month{" "}
+          {usage && <span className="text-[13px] font-medium text-ink-muted">· {usage.period}</span>}
+        </h3>
         {loading && !usage ? (
-          <p style={{ color: "var(--muted)", margin: 0 }}>Loading…</p>
+          <p className="m-0 mt-2 text-ink-muted">Loading…</p>
         ) : usage ? (
           <>
-            <p style={{ margin: "4px 0 12px" }}>
-              <strong style={{ fontSize: 22 }}>{usage.scansUsed.toLocaleString()}</strong>{" "}
-              <span style={{ color: "var(--muted)" }}>
-                / {usage.scansQuota.toLocaleString()} scans · {usage.scansRemaining.toLocaleString()} left
+            <p className="mb-3 mt-1 flex items-baseline gap-2">
+              <strong className="text-2xl font-extrabold text-ink">
+                {usage.scansUsed.toLocaleString()}
+              </strong>
+              <span className="text-[15px] text-ink-muted">
+                / {usage.scansQuota.toLocaleString()} scans ·{" "}
+                {usage.scansRemaining.toLocaleString()} left
               </span>
             </p>
-            <div className="meter">
-              <div className={`meter-fill${pct >= 100 ? " full" : ""}`} style={{ width: `${pct}%` }} />
+            <div className="h-2.5 overflow-hidden rounded-full border border-line bg-surface-sunken">
+              {/* Width is computed, so it stays an inline style: Tailwind's JIT
+                  scans statically and would emit no class for w-[${pct}%]. */}
+              <div
+                className={clsx(
+                  "h-full transition-[width] duration-300",
+                  pct >= 100 ? "bg-danger" : "bg-brand"
+                )}
+                style={{ width: `${pct}%` }}
+              />
             </div>
           </>
         ) : null}
-      </div>
+      </Card>
 
-      <div className="card">
-        <h3>API keys</h3>
-        <p className="muted-sm" style={{ margin: "0 0 12px" }}>
-          Use a key as <code>Authorization: Bearer …</code> to call the API.
+      <Card>
+        <h3 className="m-0 text-base font-bold text-ink">API keys</h3>
+        <p className="mb-3 mt-1 text-[13px] text-ink-muted">
+          Use a key as <code className="text-ink">Authorization: Bearer …</code> to call the API.
         </p>
-        <form onSubmit={onCreateKey} className="keyform">
-          <input
-            className="input"
+        <form onSubmit={onCreateKey} className="mb-5 mt-2 flex flex-wrap gap-2.5">
+          <Input
+            className="min-w-[200px] flex-1"
             placeholder="Key name (e.g. production)"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
           />
-          <button className="btn btn-primary btn-sm" type="submit">
+          <Button type="submit" variant="primary" size="sm">
             Create key
-          </button>
+          </Button>
         </form>
 
         {keys && keys.length > 0 ? (
-          <div className="keylist">
+          <div className="flex flex-col gap-2.5">
             {keys.map((k) => (
-              <div className="keyrow" key={k.id}>
-                <div className="keyrow-main">
-                  <code>
+              <div
+                key={k.id}
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface-subtle px-3.5 py-3"
+              >
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <code className="text-[13px] text-ink">
                     {k.keyPrefix}…{k.lastFour}
                   </code>
-                  <span className={`keystatus ${k.status}`}>{k.status}</span>
-                  <span className="keyname">{k.name || "—"}</span>
+                  <Badge tone={KEY_STATUS_TONE[k.status] ?? "neutral"} uppercase>
+                    {k.status}
+                  </Badge>
+                  <span className="text-[13px] text-ink-muted">{k.name || "—"}</span>
                 </div>
-                <div className="keyrow-meta">
+                <div className="flex flex-wrap gap-4 text-[12.5px] text-ink-muted sm:ml-auto">
                   <span>created {fmtDate(k.createdAt)}</span>
                   <span>last used {fmtDate(k.lastUsedAt)}</span>
                 </div>
-                <div className="keyrow-action">
+                <div className="flex items-center gap-1.5">
                   {k.status !== "active" ? (
-                    <span className="muted-sm">revoked</span>
+                    <span className="text-[13px] text-ink-subtle">revoked</span>
                   ) : confirmRevoke === k.id ? (
                     <>
-                      <button className="btn btn-danger btn-sm" onClick={() => onRevoke(k.id)}>
+                      <Button variant="danger" size="sm" onClick={() => onRevoke(k.id)}>
                         Confirm
-                      </button>
-                      <button className="linklike" onClick={() => setConfirmRevoke(null)}>
+                      </Button>
+                      <Button variant="link" onClick={() => setConfirmRevoke(null)}>
                         Cancel
-                      </button>
+                      </Button>
                     </>
                   ) : (
-                    <button className="linklike danger" onClick={() => setConfirmRevoke(k.id)}>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRevoke(k.id)}
+                      className="text-[13px] font-semibold text-danger hover:text-danger-hover"
+                    >
                       Revoke
                     </button>
                   )}
@@ -509,11 +571,11 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <p style={{ color: "var(--muted)", margin: "8px 0 0" }}>
+          <p className="m-0 mt-2 text-ink-muted">
             {loading ? "Loading…" : "No keys yet — create one above."}
           </p>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

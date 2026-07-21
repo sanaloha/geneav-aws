@@ -2,20 +2,14 @@ import type { Config } from "tailwindcss";
 import { light } from "./app/theme";
 
 /**
- * Two core plugins are deliberately disabled:
- *
- * - `preflight` stays OFF until the whole app carries explicit classes. It
- *   zeroes heading sizes/margins and list markers, and this app still has ~47
- *   bare <h2>/<h3>/<ul> elements relying on legacy CSS. Flipping it early would
- *   collapse every heading to body text. Turn it on in the final phase.
- * - `container` collides with the existing `.container` class in globals.css.
- *   The Section primitive replaces that class; until then, Tailwind must not
- *   generate a competing one.
+ * `container` stays disabled: the Section primitive owns the page width, and a
+ * Tailwind-generated `.container` would only be a second way to do the same
+ * thing. Preflight is now on — the legacy stylesheet is gone and every element
+ * carries explicit classes.
  */
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}"],
   corePlugins: {
-    preflight: false,
     container: false,
   },
   theme: {

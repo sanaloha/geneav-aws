@@ -1,4 +1,6 @@
 import Dashboard from "../components/Dashboard";
+import PageHeader from "../ui/PageHeader";
+import Section from "../ui/Section";
 
 export const metadata = {
   title: "Login — API keys & usage",
@@ -10,12 +12,13 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <section className="section">
-      <div className="container">
-        <h2>Login</h2>
-        <p className="lead">Manage your API keys and track your usage.</p>
-        <Dashboard />
-      </div>
-    </section>
+    <Section>
+      <PageHeader
+        align="center"
+        title="Login"
+        lead="Manage your API keys and track your usage."
+      />
+      <Dashboard />
+    </Section>
   );
 }
