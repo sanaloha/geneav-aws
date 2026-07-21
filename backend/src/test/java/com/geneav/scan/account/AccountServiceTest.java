@@ -54,6 +54,24 @@ class AccountServiceTest {
     }
 
     @Test
+    void keyOnlySignupMarksTheAccountApiKeyBacked() {
+        when(accounts.existsByEmail("a@b.com")).thenReturn(false);
+        when(accounts.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.signup("A@B.com");
+
+        ArgumentCaptor<Account> saved = ArgumentCaptor.forClass(Account.class);
+        verify(accounts).save(saved.capture());
+        Account account = saved.getValue();
+        // Must not claim "password" — this path sets no hash, and such a row can
+        // neither sign in nor be distinguished from a real password account.
+        assertThat(account.getAuthProvider()).isEqualTo("apikey");
+        assertThat(account.getPasswordHash()).isNull();
+        // Still local, so the holder can claim a password by resetting.
+        assertThat(account.isFederated()).isFalse();
+    }
+
+    @Test
     void signupRejectsShortPassword() {
         assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "short"))
                 .isInstanceOf(ScanException.class)

@@ -6,12 +6,19 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /** A customer of the API. Owns one or more {@link ApiKey}s and a plan. */
 @Entity
 @Table(name = "account")
 public class Account {
+
+    /**
+     * Providers whose credentials geneav itself holds. For anything else the
+     * password lives at the identity provider, so we must not mint one here.
+     */
+    private static final Set<String> LOCAL_AUTH_PROVIDERS = Set.of("password", "apikey");
 
     @Id
     private UUID id;
@@ -26,11 +33,19 @@ public class Account {
     @Column(nullable = false)
     private String status;
 
-    /** BCrypt hash of the password, or null for accounts without a password (e.g. OAuth). */
+    /**
+     * BCrypt hash of the password, or null for an account that has never set one —
+     * a federated (e.g. Google) account, or one provisioned for API-key use only.
+     * A null hash on its own says nothing about whether a password may be set;
+     * {@link #isFederated()} is the signal for that.
+     */
     @Column(name = "password_hash")
     private String passwordHash;
 
-    /** How this account authenticates: "password" or a federated provider like "google". */
+    /**
+     * How this account authenticates: "password", "apikey", or a federated
+     * provider like "google".
+     */
     @Column(name = "auth_provider", nullable = false)
     private String authProvider = "password";
 
@@ -103,6 +118,18 @@ public class Account {
 
     public void setAuthProvider(String authProvider) {
         this.authProvider = authProvider;
+    }
+
+    /**
+     * Whether sign-in is delegated to an external identity provider, in which
+     * case geneav must never set a local password for the account.
+     *
+     * <p>An unrecognised provider counts as federated: a provider added later
+     * is then refused until it is deliberately listed as local, rather than
+     * silently becoming password-resettable.
+     */
+    public boolean isFederated() {
+        return !LOCAL_AUTH_PROVIDERS.contains(authProvider);
     }
 
     public String getProviderSubject() {
