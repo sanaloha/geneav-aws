@@ -43,6 +43,18 @@ spring:
       mail.smtp.writetimeout: 10000
 
 geneav:
+  auth:
+    # Password-reset links. TTL is GN-8's 10 minutes; shorten it in a test
+    # environment to exercise expiry without waiting.
+    reset-token-ttl: ${GENEAV_RESET_TOKEN_TTL:10m}
+    # Minimum gap between reset emails for one account, independent of source IP.
+    reset-cooldown: ${GENEAV_RESET_COOLDOWN:60s}
+    # Spent/expired tokens are swept after this long.
+    reset-token-retention: ${GENEAV_RESET_TOKEN_RETENTION:24h}
+    # Sweep cadence. Declared here (not only as @Scheduled defaults) so both are
+    # env-overridable like every other tunable.
+    reset-cleanup-interval-ms: ${GENEAV_RESET_CLEANUP_INTERVAL_MS:3600000}
+    reset-cleanup-initial-delay-ms: ${GENEAV_RESET_CLEANUP_INITIAL_DELAY_MS:60000}
   clamav:
     host: ${CLAMAV_HOST:localhost}
     port: ${CLAMAV_PORT:3310}
@@ -75,6 +87,11 @@ geneav:
     chat:
       capacity: ${GENEAV_RATELIMIT_CHAT_CAPACITY:15}
       refill-per-minute: ${GENEAV_RATELIMIT_CHAT_RPM:15}
+    # Sign-in / sign-up / password reset. Tight and always per-IP: these are
+    # human-paced, and a loose budget invites password guessing and mail-bombing.
+    auth:
+      capacity: ${GENEAV_RATELIMIT_AUTH_CAPACITY:5}
+      refill-per-minute: ${GENEAV_RATELIMIT_AUTH_RPM:5}
     other:
       capacity: ${GENEAV_RATELIMIT_OTHER_CAPACITY:60}
       refill-per-minute: ${GENEAV_RATELIMIT_OTHER_RPM:60}

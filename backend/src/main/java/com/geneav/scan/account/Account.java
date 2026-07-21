@@ -41,6 +41,14 @@ public class Account {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /**
+     * When the password last changed. Sessions authenticated before this are
+     * rejected, which signs the account out everywhere else. Null means never
+     * changed, so pre-existing sessions are unaffected.
+     */
+    @Column(name = "credentials_changed_at")
+    private Instant credentialsChangedAt;
+
     protected Account() {
         // for JPA
     }
@@ -107,5 +115,25 @@ public class Account {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getCredentialsChangedAt() {
+        return credentialsChangedAt;
+    }
+
+    public void setCredentialsChangedAt(Instant credentialsChangedAt) {
+        this.credentialsChangedAt = credentialsChangedAt;
+    }
+
+    /**
+     * Whether a session authenticated at {@code sessionAuthenticatedAt} is still
+     * valid. A session with no recorded time is only trusted if the password has
+     * never changed.
+     */
+    public boolean acceptsSessionFrom(Instant sessionAuthenticatedAt) {
+        if (credentialsChangedAt == null) {
+            return true;
+        }
+        return sessionAuthenticatedAt != null && !sessionAuthenticatedAt.isBefore(credentialsChangedAt);
     }
 }

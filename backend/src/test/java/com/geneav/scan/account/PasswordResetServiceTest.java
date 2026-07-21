@@ -27,8 +27,9 @@ class PasswordResetServiceTest {
     private final AccountRepository accounts = mock(AccountRepository.class);
     private final PasswordResetTokenRepository tokens = mock(PasswordResetTokenRepository.class);
     private final PasswordEncoder encoder = new BCryptPasswordEncoder();
+    private final AuthProperties props = new AuthProperties();
     private final PasswordResetService service =
-            new PasswordResetService(accounts, tokens, encoder, new PasswordPolicy());
+            new PasswordResetService(accounts, tokens, encoder, new PasswordPolicy(), props);
 
     private Account account(String email) {
         Account account = new Account(UUID.randomUUID(), email, "free", "active", Instant.now());
@@ -55,7 +56,7 @@ class PasswordResetServiceTest {
                 .isNotEqualTo(issued.get().token())          // stored hashed, never plaintext
                 .isEqualTo(ApiKeyService.sha256Hex(issued.get().token()));
         // 10-minute TTL per GN-8, allowing for clock drift across the two calls.
-        Instant expected = Instant.now().plus(PasswordResetService.TOKEN_TTL);
+        Instant expected = Instant.now().plus(props.getResetTokenTtl());
         assertThat(token.getExpiresAt())
                 .isAfter(expected.minusSeconds(5))
                 .isBefore(expected.plusSeconds(5));
@@ -164,6 +165,53 @@ class PasswordResetServiceTest {
 
         // The token survives a rejected password, so the user can retry the same link.
         assertThat(token.getUsedAt()).isNull();
+    }
+
+    // ---- cooldown -----------------------------------------------------------
+
+    @Test
+    void requestIsSuppressedInsideTheCooldown() {
+        Account account = account("a@b.com");
+        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(account));
+        // Issued 5s ago, cooldown is 60s.
+        when(tokens.findTopByAccountIdOrderByCreatedAtDesc(account.getId()))
+                .thenReturn(Optional.of(new PasswordResetToken(UUID.randomUUID(), account.getId(),
+                        "hash", Instant.now().minusSeconds(5), Instant.now().plusSeconds(600))));
+
+        // Silent, so the caller still returns 202 and reveals nothing.
+        assertThat(service.request("a@b.com")).isEmpty();
+        verify(tokens, never()).save(any());
+    }
+
+    @Test
+    void requestIsAllowedOnceTheCooldownHasPassed() {
+        Account account = account("a@b.com");
+        when(accounts.findByEmail("a@b.com")).thenReturn(Optional.of(account));
+        when(tokens.findTopByAccountIdOrderByCreatedAtDesc(account.getId()))
+                .thenReturn(Optional.of(new PasswordResetToken(UUID.randomUUID(), account.getId(),
+                        "hash", Instant.now().minusSeconds(120), Instant.now().minusSeconds(60))));
+
+        assertThat(service.request("a@b.com")).isPresent();
+        verify(tokens).save(any());
+    }
+
+    // ---- session invalidation ----------------------------------------------
+
+    @Test
+    void resetStampsCredentialsChangedAt() {
+        Account account = account("a@b.com");
+        assertThat(account.getCredentialsChangedAt()).isNull();
+        PasswordResetToken token = storedToken(account, "tok", Instant.now().plusSeconds(600));
+        when(tokens.findByTokenHash(ApiKeyService.sha256Hex("tok"))).thenReturn(Optional.of(token));
+        when(accounts.findById(account.getId())).thenReturn(Optional.of(account));
+
+        Instant before = Instant.now().minusSeconds(1);
+        service.reset("tok", STRONG);
+
+        // Sessions authenticated before this instant are now rejected.
+        assertThat(account.getCredentialsChangedAt()).isNotNull().isAfter(before);
+        assertThat(account.acceptsSessionFrom(before)).isFalse();
+        assertThat(account.acceptsSessionFrom(Instant.now().plusSeconds(1))).isTrue();
     }
 
     @Test

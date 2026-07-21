@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -87,7 +88,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
         passwordResets.request(req.email()).ifPresent(issued -> mail.sendPasswordReset(
-                issued.account().getEmail(), issued.token(), PasswordResetService.TOKEN_TTL.toMinutes()));
+                issued.account().getEmail(), issued.token(), passwordResets.tokenTtl().toMinutes()));
     }
 
     @Operation(summary = "Set a new password",
@@ -131,8 +132,10 @@ public class AuthController {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
-        request.getSession(true);
+        HttpSession session = request.getSession(true);
         request.changeSessionId(); // rotate to avoid session fixation
+        // Lets a later password change invalidate sessions issued before it.
+        session.setAttribute(CurrentAccount.AUTHENTICATED_AT, Instant.now());
         securityContextRepository.saveContext(context, request, response);
     }
 

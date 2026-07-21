@@ -19,6 +19,13 @@ public class RateLimitProperties {
     /** Limit for POST /api/v1/chat (protects the paid OpenAI budget). */
     private Limit chat = new Limit(15, 15);
 
+    /**
+     * Limit for /api/v1/auth/** (protects against password guessing and against
+     * using forgot-password to flood someone's inbox). Much tighter than
+     * {@link #other}: these are human-paced actions.
+     */
+    private Limit auth = new Limit(5, 5);
+
     /** Fallback limit for any other /api/v1/** endpoint. */
     private Limit other = new Limit(60, 60);
 
@@ -56,6 +63,14 @@ public class RateLimitProperties {
 
     public void setChat(Limit chat) {
         this.chat = chat;
+    }
+
+    public Limit getAuth() {
+        return auth;
+    }
+
+    public void setAuth(Limit auth) {
+        this.auth = auth;
     }
 
     public Limit getOther() {

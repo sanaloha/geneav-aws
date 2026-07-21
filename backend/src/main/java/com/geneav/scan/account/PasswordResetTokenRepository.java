@@ -20,4 +20,15 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
     @Modifying
     @Query("update PasswordResetToken t set t.usedAt = :now where t.accountId = :accountId and t.usedAt is null")
     void invalidateOutstanding(@Param("accountId") UUID accountId, @Param("now") Instant now);
+
+    /** Most recent issue for an account, used to enforce the per-account cooldown. */
+    Optional<PasswordResetToken> findTopByAccountIdOrderByCreatedAtDesc(UUID accountId);
+
+    /**
+     * Deletes tokens that expired before the cutoff. Spent tokens expire on
+     * schedule too, so this covers both used and simply-abandoned rows.
+     */
+    @Modifying
+    @Query("delete from PasswordResetToken t where t.expiresAt < :cutoff")
+    int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
 }

@@ -29,23 +29,28 @@ public class PasswordResetService {
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
 
-    /** Per GN-8. Short enough to limit exposure of a leaked link, long enough to be usable. */
-    public static final Duration TOKEN_TTL = Duration.ofMinutes(10);
-
     private static final int TOKEN_BYTES = 32; // -> 43 url-safe chars
 
     private final AccountRepository accounts;
     private final PasswordResetTokenRepository tokens;
     private final PasswordEncoder passwordEncoder;
     private final PasswordPolicy passwordPolicy;
+    private final AuthProperties props;
     private final SecureRandom random = new SecureRandom();
 
     public PasswordResetService(AccountRepository accounts, PasswordResetTokenRepository tokens,
-                                PasswordEncoder passwordEncoder, PasswordPolicy passwordPolicy) {
+                                PasswordEncoder passwordEncoder, PasswordPolicy passwordPolicy,
+                                AuthProperties props) {
         this.accounts = accounts;
         this.tokens = tokens;
         this.passwordEncoder = passwordEncoder;
         this.passwordPolicy = passwordPolicy;
+        this.props = props;
+    }
+
+    /** How long an issued link stays valid; quoted in the reset email. */
+    public Duration tokenTtl() {
+        return props.getResetTokenTtl();
     }
 
     /** A freshly issued reset: the one-time plaintext token and who it belongs to. */
@@ -76,6 +81,16 @@ public class PasswordResetService {
         }
 
         Instant now = Instant.now();
+
+        // Per-account cooldown. A per-IP rate limit cannot stop a distributed
+        // attempt to flood one person's inbox; this can.
+        Optional<Instant> lastIssued = tokens.findTopByAccountIdOrderByCreatedAtDesc(account.getId())
+                .map(PasswordResetToken::getCreatedAt);
+        if (lastIssued.isPresent() && lastIssued.get().isAfter(now.minus(props.getResetCooldown()))) {
+            log.info("Password reset for account {} is within the cooldown; not sending again", account.getId());
+            return Optional.empty();
+        }
+
         tokens.invalidateOutstanding(account.getId(), now);
 
         byte[] raw = new byte[TOKEN_BYTES];
@@ -83,7 +98,7 @@ public class PasswordResetService {
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
 
         tokens.save(new PasswordResetToken(UUID.randomUUID(), account.getId(),
-                ApiKeyService.sha256Hex(token), now, now.plus(TOKEN_TTL)));
+                ApiKeyService.sha256Hex(token), now, now.plus(props.getResetTokenTtl())));
         return Optional.of(new IssuedReset(token, account));
     }
 
@@ -113,6 +128,9 @@ public class PasswordResetService {
         passwordPolicy.validate(newPassword, account.getEmail());
 
         account.setPasswordHash(passwordEncoder.encode(newPassword));
+        // Signs the account out of every other browser: sessions authenticated
+        // before this instant are rejected on their next request.
+        account.setCredentialsChangedAt(now);
         accounts.save(account);
 
         stored.markUsed(now);
