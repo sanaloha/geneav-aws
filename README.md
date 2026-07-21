@@ -167,9 +167,16 @@ curl -X POST   http://localhost:8080/api/v1/keys      -H "Authorization: Bearer 
 curl -X DELETE http://localhost:8080/api/v1/keys/{id} -H "Authorization: Bearer gav_live_..."
 ```
 
-Prefer a UI? The **dashboard** at `/dashboard` lets you sign up / sign in with an
+Prefer a UI? The **dashboard** at `/login` lets you sign up / sign in with an
 email + password (Google login coming next) and manage keys + usage from a browser
 session (secure HttpOnly cookie) — no need to handle a raw key yourself.
+
+Passwords must be at least 12 characters (and at most 72 — BCrypt ignores anything
+beyond that), mix at least three of lowercase/uppercase/digits/symbols, and may not
+be a common password or contain your email address. Signup sends an acknowledgement
+email; it is **disabled by default** and only logged, until you set
+`GENEAV_MAIL_ENABLED=true` plus `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD`.
+Mail is sent off the request thread and never fails a signup.
 
 Keys are stored only as SHA-256 hashes — the plaintext is shown once, at creation.
 Response codes: **401** missing/invalid key · **402** monthly quota exhausted ·

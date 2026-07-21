@@ -21,23 +21,24 @@ public class AccountService {
     private final ApiKeyService apiKeyService;
     private final PlanCatalog plans;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordPolicy passwordPolicy;
 
     public AccountService(AccountRepository accounts, ApiKeyRepository apiKeys,
-                          ApiKeyService apiKeyService, PlanCatalog plans, PasswordEncoder passwordEncoder) {
+                          ApiKeyService apiKeyService, PlanCatalog plans, PasswordEncoder passwordEncoder,
+                          PasswordPolicy passwordPolicy) {
         this.accounts = accounts;
         this.apiKeys = apiKeys;
         this.apiKeyService = apiKeyService;
         this.plans = plans;
         this.passwordEncoder = passwordEncoder;
+        this.passwordPolicy = passwordPolicy;
     }
 
     /** Creates a password-backed account for the dashboard (no API key issued yet). */
     @Transactional
     public Account signupWithPassword(String rawEmail, String rawPassword) {
         String email = normalizeEmail(rawEmail);
-        if (rawPassword == null || rawPassword.length() < 8) {
-            throw new ScanException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters.");
-        }
+        passwordPolicy.validate(rawPassword, email);
         if (accounts.existsByEmail(email)) {
             throw new ScanException(HttpStatus.CONFLICT, "An account with that email already exists.");
         }

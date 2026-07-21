@@ -253,17 +253,22 @@ export default function Dashboard() {
               />
             </label>
             <label className="field">
-              <span>Password{mode === "signup" ? " (at least 8 characters)" : ""}</span>
+              <span>Password</span>
               <input
                 className="input"
                 type="password"
                 required
-                minLength={mode === "signup" ? 8 : undefined}
+                minLength={mode === "signup" ? 12 : undefined}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              {mode === "signup" && (
+                <span className="muted-sm">
+                  At least 12 characters, mixing three of: lowercase, uppercase, digits, symbols.
+                </span>
+              )}
             </label>
             <button className="btn btn-primary" type="submit" disabled={authBusy} style={{ width: "100%" }}>
               {authBusy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
