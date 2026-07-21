@@ -87,14 +87,18 @@ const plans = [
   {
     name: "Free",
     price: "$0",
+    period: "/month",
     note: "No card required",
     cta: { label: "Create an API key", href: "/login", variant: "secondary" as const },
     limits: ["100 scans per month", "10 requests per minute", "Full REST API access", "OpenAPI docs"],
   },
   {
     name: "Pro",
-    price: "Contact us",
-    note: "For production workloads",
+    price: "$10",
+    period: "/month",
+    // There is no checkout yet, so the CTA opens an email rather than implying
+    // self-serve upgrade. Swap to a billing link once Stripe is wired up.
+    note: "Billed monthly",
     cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "primary" as const },
     limits: [
       "100,000 scans per month",
@@ -303,7 +307,10 @@ export default function Home() {
                 <h3 className="m-0 text-lg font-bold text-ink">{plan.name}</h3>
                 {plan.featured && <Badge tone="brand">Most capacity</Badge>}
               </div>
-              <div className="mt-3 text-3xl font-extrabold tracking-tight text-ink">{plan.price}</div>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="text-3xl font-extrabold tracking-tight text-ink">{plan.price}</span>
+                <span className="text-[15px] font-semibold text-ink-subtle">{plan.period}</span>
+              </div>
               <div className="mt-1 text-[13px] text-ink-subtle">{plan.note}</div>
               <ul className="my-6 list-none space-y-2.5 p-0">
                 {plan.limits.map((limit) => (
