@@ -48,4 +48,13 @@ public final class AccountDtos {
     /** The currently signed-in account (dashboard session). */
     public record MeResponse(String email, String plan, String authProvider) {
     }
+
+    public record ForgotPasswordRequest(
+            @NotBlank(message = "email is required") String email) {
+    }
+
+    public record ResetPasswordRequest(
+            @NotBlank(message = "token is required") String token,
+            @NotBlank(message = "password is required") String password) {
+    }
 }

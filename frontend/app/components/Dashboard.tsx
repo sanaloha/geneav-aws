@@ -47,12 +47,13 @@ export default function Dashboard() {
   const [authState, setAuthState] = useState<"loading" | "anon" | "authed">("loading");
   const [me, setMe] = useState<Me | null>(null);
 
-  // Landing (sign in / sign up) form
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // Landing (sign in / sign up / forgot password) form
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   // Dashboard data
   const [usage, setUsage] = useState<Usage | null>(null);
@@ -137,6 +138,34 @@ export default function Dashboard() {
     [mode, email, password]
   );
 
+  const onForgot = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      setAuthBusy(true);
+      setAuthError(null);
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/forgot-password`, {
+          ...withCreds,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok) {
+          setAuthError(await apiErrorMessage(res, "Could not send the reset email"));
+          return;
+        }
+        // Deliberately the same message whether or not an account exists — the
+        // API does not reveal it, and neither should the UI.
+        setResetSent(true);
+      } catch {
+        setAuthError(`Could not reach the API at ${API_BASE}.`);
+      } finally {
+        setAuthBusy(false);
+      }
+    },
+    [email]
+  );
+
   const signOut = useCallback(async () => {
     try {
       await fetch(`${API_BASE}/api/v1/auth/logout`, { ...withCreds, method: "POST" });
@@ -207,6 +236,71 @@ export default function Dashboard() {
     return <p style={{ color: "var(--muted)" }}>Loading…</p>;
   }
 
+  // ---- Signed out: forgot password ----------------------------------------
+  if (authState === "anon" && mode === "forgot") {
+    return (
+      <div className="auth-wrap">
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Reset your password</h3>
+
+          {resetSent ? (
+            <>
+              <p style={{ color: "var(--muted)" }}>
+                If an account exists for <strong>{email}</strong>, we&apos;ve sent a reset link to
+                it. The link expires in 10 minutes.
+              </p>
+              <p className="muted-sm">
+                Nothing arrived? Check your spam folder, then try again.
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={{ color: "var(--muted)", marginTop: 0 }}>
+                Enter your email and we&apos;ll send you a link to set a new password.
+              </p>
+
+              {authError && (
+                <div className="result error" style={{ marginTop: 0, marginBottom: 14 }}>
+                  <p style={{ margin: 0 }}>{authError}</p>
+                </div>
+              )}
+
+              <form onSubmit={onForgot}>
+                <label className="field">
+                  <span>Email</span>
+                  <input
+                    className="input"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </label>
+                <button className="btn btn-primary" type="submit" disabled={authBusy} style={{ width: "100%" }}>
+                  {authBusy ? "Sending…" : "Send reset link"}
+                </button>
+              </form>
+            </>
+          )}
+
+          <button
+            className="linklike"
+            style={{ marginTop: 14 }}
+            onClick={() => {
+              setMode("signin");
+              setAuthError(null);
+              setResetSent(false);
+            }}
+          >
+            ← Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ---- Signed out: sign in / sign up --------------------------------------
   if (authState === "anon") {
     return (
@@ -274,6 +368,20 @@ export default function Dashboard() {
               {authBusy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
             </button>
           </form>
+
+          {mode === "signin" && (
+            <button
+              className="linklike"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                setMode("forgot");
+                setAuthError(null);
+                setPassword("");
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
 
           <div className="auth-divider"><span>or</span></div>
 

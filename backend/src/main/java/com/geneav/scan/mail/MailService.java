@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -53,6 +54,50 @@ public class MailService {
                 """.formatted(email, props.getLoginUrl());
 
         send(email, "Welcome to geneav — your account is ready", body);
+    }
+
+    /**
+     * Sends the password-reset link. The token is URL-encoded because it is
+     * base64url — safe in practice, but the encoding costs nothing and stops a
+     * future token format from silently breaking the link.
+     */
+    @Async
+    public void sendPasswordReset(String email, String token, long expiryMinutes) {
+        String link = props.getResetUrl() + "?token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
+        String body = """
+                We received a request to reset the password for your geneav account (%s).
+
+                Set a new password here:
+                %s
+
+                This link expires in %d minutes and can only be used once.
+
+                If you did not request this, you can ignore this email — your
+                password has not been changed.
+
+                — the geneav team
+                """.formatted(email, link, expiryMinutes);
+
+        send(email, "Reset your geneav password", body);
+    }
+
+    /** Confirms a completed password change, so an unexpected one is noticed. */
+    @Async
+    public void sendPasswordChanged(String email) {
+        String body = """
+                The password for your geneav account (%s) was just changed.
+
+                You can sign in here:
+                %s
+
+                If this wasn't you, reset your password immediately and contact us
+                by replying to this email — someone else may have access to your
+                account.
+
+                — the geneav team
+                """.formatted(email, props.getLoginUrl());
+
+        send(email, "Your geneav password was changed", body);
     }
 
     private void send(String to, String subject, String body) {

@@ -56,6 +56,7 @@ geneav:
     from: ${GENEAV_MAIL_FROM:no-reply@geneav.com}
     from-name: ${GENEAV_MAIL_FROM_NAME:geneav}
     login-url: ${GENEAV_MAIL_LOGIN_URL:http://localhost:3000/login}
+    reset-url: ${GENEAV_MAIL_RESET_URL:http://localhost:3000/reset-password}
   openai:
     # Chat is disabled until an API key is provided; the /chat endpoint then returns 503.
     api-key: ${OPENAI_API_KEY:}
