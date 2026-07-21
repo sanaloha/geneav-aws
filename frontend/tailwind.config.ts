@@ -59,6 +59,10 @@ const config: Config = {
           border: light.warningBorder,
         },
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
       borderRadius: {
         card: "14px",
       },

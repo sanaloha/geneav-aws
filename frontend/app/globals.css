@@ -55,7 +55,8 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* --font-sans is set by next/font on <html>; the stack is the fallback. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -154,7 +155,7 @@ pre {
   border: 1px solid var(--border); border-radius: 12px;
   padding: 16px; overflow-x: auto; font-size: 13.5px;
 }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+code, pre { font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
 .footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--muted); font-size: 14px; }
 .footer-inner { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
