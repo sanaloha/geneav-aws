@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type ReactNode, type FormEvent } from
 import Badge, { type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import Card from "../ui/Card";
+import PageHeader from "../ui/PageHeader";
 import { Field, Input } from "../ui/Field";
 import { notifyAuthChanged } from "../lib/authEvents";
 
@@ -250,13 +251,14 @@ export default function Dashboard() {
   }, [revealed]);
 
   if (authState === "loading") {
-    return <p className="text-ink-muted">Loading…</p>;
+    return <p className="text-center text-ink-muted">Loading…</p>;
   }
 
   // ---- Signed out: forgot password ----------------------------------------
   if (authState === "anon" && mode === "forgot") {
     return (
       <div className="mx-auto max-w-md">
+        <h1 className="sr-only">Reset your password</h1>
         <Card>
           <h2 className="m-0 text-xl font-bold text-ink">Reset your password</h2>
 
@@ -322,7 +324,13 @@ export default function Dashboard() {
   // ---- Signed out: sign in / sign up --------------------------------------
   if (authState === "anon") {
     return (
-      <div className="mx-auto max-w-md">
+      <>
+        <PageHeader
+          align="center"
+          title="Login"
+          lead="Manage your API keys and track your usage."
+        />
+        <div className="mx-auto max-w-md">
         <Card>
           <div className="mb-5 flex gap-1.5 rounded-xl border border-line bg-surface-sunken p-1">
             {(["signin", "signup"] as const).map((m) => (
@@ -408,7 +416,8 @@ export default function Dashboard() {
             <span className="text-[13px] font-medium text-ink-subtle">(soon)</span>
           </Button>
         </Card>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -420,6 +429,10 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* Visually removed once signed in — "Login" is wrong at that point — but
+          the page still needs a heading for assistive tech. */}
+      <h1 className="sr-only">Dashboard</h1>
+
       {revealed && (
         <Card tone="success" className="mb-5">
           <h3 className="m-0 flex items-center gap-2 text-base font-bold text-success">

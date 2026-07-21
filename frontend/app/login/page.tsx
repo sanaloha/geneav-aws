@@ -1,5 +1,4 @@
 import Dashboard from "../components/Dashboard";
-import PageHeader from "../ui/PageHeader";
 import Section from "../ui/Section";
 
 export const metadata = {
@@ -13,11 +12,8 @@ export const metadata = {
 export default function LoginPage() {
   return (
     <Section>
-      <PageHeader
-        align="center"
-        title="Login"
-        lead="Manage your API keys and track your usage."
-      />
+      {/* The page heading lives inside Dashboard: it depends on session state,
+          which is only known client-side, and this page is a server component. */}
       <Dashboard />
     </Section>
   );
