@@ -4,6 +4,7 @@ import "./globals.css";
 import Nav from "./components/Nav";
 import ChatWidget from "./components/ChatWidget";
 import { SITE_NAME, SITE_URL, SITE_TITLE, SITE_DESCRIPTION } from "./site";
+import { THEME_COLOR } from "./theme";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1020",
+  themeColor: THEME_COLOR,
 };
 
 // Structured data so search engines understand what geneav is.
