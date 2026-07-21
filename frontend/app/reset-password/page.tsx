@@ -1,4 +1,6 @@
 import ResetPassword from "../components/ResetPassword";
+import PageHeader from "../ui/PageHeader";
+import Section from "../ui/Section";
 
 export const metadata = {
   title: "Reset password",
@@ -10,11 +12,9 @@ export const metadata = {
 
 export default function ResetPasswordPage() {
   return (
-    <section className="section">
-      <div className="container">
-        <h2>Reset password</h2>
-        <ResetPassword />
-      </div>
-    </section>
+    <Section>
+      <PageHeader align="center" title="Reset password" />
+      <ResetPassword />
+    </Section>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import clsx from "clsx";
+import { MessageCircle, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
@@ -79,27 +81,47 @@ export default function ChatWidget() {
   };
 
   return (
-    <div className="chat">
+    <div className="fixed bottom-5 right-5 z-50">
       {open && (
-        <div className="chat-panel" role="dialog" aria-label="geneav assistant">
-          <div className="chat-header">
+        <div
+          className="mb-3 flex h-[min(520px,calc(100vh-120px))] w-[min(380px,calc(100vw-40px))] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-lg"
+          role="dialog"
+          aria-label="geneav assistant"
+        >
+          <div className="flex items-center justify-between border-b border-line bg-surface-subtle px-4 py-3 font-bold text-ink">
             <span>geneav assistant</span>
-            <button className="chat-close" onClick={() => setOpen(false)} aria-label="Close chat">
-              ×
+            <button
+              className="rounded-md p-1 leading-none text-ink-muted hover:bg-surface-sunken hover:text-ink"
+              onClick={() => setOpen(false)}
+              aria-label="Close chat"
+            >
+              <X size={18} aria-hidden />
             </button>
           </div>
 
-          <div className="chat-log" ref={scrollRef}>
+          <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5" ref={scrollRef}>
             {messages.map((m, i) => (
-              <div key={i} className={`chat-msg ${m.role}`}>
+              <div
+                key={i}
+                className={clsx(
+                  "max-w-[85%] whitespace-pre-wrap break-words rounded-xl px-3 py-2.5 text-sm",
+                  m.role === "user"
+                    ? "self-end rounded-br-[4px] bg-brand text-white"
+                    : "self-start rounded-bl-[4px] border border-line bg-surface-sunken text-ink"
+                )}
+              >
                 {m.content}
               </div>
             ))}
-            {loading && <div className="chat-msg assistant chat-typing">…</div>}
-            {error && <div className="chat-error">{error}</div>}
+            {loading && (
+              <div className="max-w-[85%] self-start rounded-xl rounded-bl-[4px] border border-line bg-surface-sunken px-3 py-2.5 text-sm tracking-[2px] text-ink-muted">
+                …
+              </div>
+            )}
+            {error && <div className="self-center text-center text-[13px] text-danger">{error}</div>}
           </div>
 
-          <div className="chat-input">
+          <div className="flex gap-2 border-t border-line bg-surface-subtle p-3">
             <input
               ref={inputRef}
               type="text"
@@ -108,21 +130,27 @@ export default function ChatWidget() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onKeyDown}
               disabled={loading}
+              className="flex-1 rounded-[10px] border border-line-control bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-subtle focus-visible:border-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15"
             />
-            <button onClick={send} disabled={loading || !input.trim()} aria-label="Send message">
-              Send
+            <button
+              onClick={send}
+              disabled={loading || !input.trim()}
+              aria-label="Send message"
+              className="rounded-[10px] bg-brand px-4 font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Send size={16} aria-hidden />
             </button>
           </div>
         </div>
       )}
 
       <button
-        className="chat-bubble"
+        className="ml-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand text-white shadow-lg transition-colors hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close chat" : "Open chat"}
         aria-expanded={open}
       >
-        {open ? "×" : "💬"}
+        {open ? <X size={24} aria-hidden /> : <MessageCircle size={24} aria-hidden />}
       </button>
     </div>
   );

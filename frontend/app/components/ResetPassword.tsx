@@ -1,6 +1,10 @@
 "use client";
 
+import { AlertTriangle, CheckCircle2, LinkIcon } from "lucide-react";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Button, ButtonLink } from "../ui/Button";
+import Card from "../ui/Card";
+import { Field, Input } from "../ui/Field";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
@@ -64,53 +68,60 @@ export default function ResetPassword() {
 
   if (done) {
     return (
-      <div className="auth-wrap">
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Password updated</h3>
-          <p style={{ color: "var(--muted)" }}>
+      <div className="mx-auto max-w-md">
+        <Card>
+          <CheckCircle2 size={28} className="mb-3 text-success" aria-hidden />
+          <h2 className="m-0 text-xl font-bold text-ink">Password updated</h2>
+          <p className="mb-6 mt-2 text-[15px] leading-relaxed text-ink-muted">
             Your password has been changed and a confirmation email is on its way.
           </p>
-          <a className="btn btn-primary" href="/login" style={{ width: "100%" }}>
+          <ButtonLink href="/login" variant="primary" fullWidth>
             Sign in
-          </a>
-        </div>
+          </ButtonLink>
+        </Card>
       </div>
     );
   }
 
   if (token === null) {
     return (
-      <div className="auth-wrap">
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Reset link missing</h3>
-          <p style={{ color: "var(--muted)" }}>
-            This page needs the link from your reset email. Open that link, or request a new
-            one — links expire 10 minutes after they are sent.
+      <div className="mx-auto max-w-md">
+        <Card>
+          <LinkIcon size={28} className="mb-3 text-warning" aria-hidden />
+          <h2 className="m-0 text-xl font-bold text-ink">Reset link missing</h2>
+          <p className="mb-6 mt-2 text-[15px] leading-relaxed text-ink-muted">
+            This page needs the link from your reset email. Open that link, or request a new one —
+            links expire 10 minutes after they are sent.
           </p>
-          <a className="btn btn-ghost" href="/login" style={{ width: "100%" }}>
+          <ButtonLink href="/login" variant="secondary" fullWidth>
             Back to sign in
-          </a>
-        </div>
+          </ButtonLink>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="auth-wrap">
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Choose a new password</h3>
+    <div className="mx-auto max-w-md">
+      <Card>
+        <h2 className="m-0 text-xl font-bold text-ink">Choose a new password</h2>
 
         {error && (
-          <div className="result error" style={{ marginTop: 0, marginBottom: 14 }}>
-            <p style={{ margin: 0 }}>{error}</p>
+          <div
+            role="alert"
+            className="mt-4 flex items-start gap-2.5 rounded-[10px] border border-danger-border bg-danger-bg p-3 text-sm text-danger"
+          >
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+            {error}
           </div>
         )}
 
-        <form onSubmit={onSubmit}>
-          <label className="field">
-            <span>New password</span>
-            <input
-              className="input"
+        <form onSubmit={onSubmit} className="mt-5">
+          <Field
+            label="New password"
+            hint="At least 12 characters, mixing three of: lowercase, uppercase, digits, symbols."
+          >
+            <Input
               type="password"
               required
               minLength={12}
@@ -119,14 +130,9 @@ export default function ResetPassword() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <span className="muted-sm">
-              At least 12 characters, mixing three of: lowercase, uppercase, digits, symbols.
-            </span>
-          </label>
-          <label className="field">
-            <span>Confirm new password</span>
-            <input
-              className="input"
+          </Field>
+          <Field label="Confirm new password">
+            <Input
               type="password"
               required
               autoComplete="new-password"
@@ -134,12 +140,12 @@ export default function ResetPassword() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
             />
-          </label>
-          <button className="btn btn-primary" type="submit" disabled={busy} style={{ width: "100%" }}>
+          </Field>
+          <Button type="submit" variant="primary" fullWidth disabled={busy} className="mt-1">
             {busy ? "Saving…" : "Set new password"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }
