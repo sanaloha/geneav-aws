@@ -24,11 +24,17 @@ export default function PageHeader({
   const Heading = level;
   return (
     <div className={clsx(align === "center" && "text-center", className)}>
-      {eyebrow && <div className={clsx("mb-4", align === "center" && "flex justify-center")}>{eyebrow}</div>}
+      {eyebrow && (
+        <div
+          className={clsx("mb-4", align === "center" && "flex justify-center")}
+        >
+          {eyebrow}
+        </div>
+      )}
       <Heading
         className={clsx(
           "m-0 font-extrabold tracking-tight text-ink",
-          level === "h1" ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"
+          level === "h1" ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl",
         )}
       >
         {title}
@@ -37,7 +43,7 @@ export default function PageHeader({
         <p
           className={clsx(
             "mb-7 mt-3 text-[17px] leading-relaxed text-ink-muted",
-            align === "center" && "mx-auto max-w-2xl"
+            align === "center" && "mx-auto max-w-2xl",
           )}
         >
           {lead}
