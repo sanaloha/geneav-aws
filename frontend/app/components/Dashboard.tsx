@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { AlertTriangle, ArrowLeft, Check, Copy, KeyRound, Mail } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode, type FormEvent } from "react";
 import Badge, { type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -389,6 +390,16 @@ export default function Dashboard() {
             <Button type="submit" variant="primary" fullWidth disabled={authBusy}>
               {authBusy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
             </Button>
+
+            {mode === "signup" && (
+              <p className="mt-3 text-center text-[13px] leading-relaxed text-ink-muted">
+                By creating an account, you agree to our{" "}
+                <Link href="/privacy" className="font-semibold text-brand hover:text-brand-hover">
+                  Privacy Policy
+                </Link>
+                .
+              </p>
+            )}
           </form>
 
           {mode === "signin" && (

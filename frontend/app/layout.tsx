@@ -140,6 +140,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   items: [
                     { href: "/about", label: "About" },
                     { href: "/legal", label: "Legal & attribution" },
+                    { href: "/privacy", label: "Privacy" },
                     { href: "mailto:admin@geneav.com", label: "Contact" },
                   ],
                 },
