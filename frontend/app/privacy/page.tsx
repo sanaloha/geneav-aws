@@ -87,8 +87,9 @@ export default function Privacy() {
               page for details.
             </li>
             <li>
-              <strong>Resend</strong> — sends transactional email such as signup acknowledgements
-              and password-reset links. Your email address is shared with Resend for this purpose.
+              <strong>Hostinger</strong> — sends transactional email such as signup
+              acknowledgements and password-reset links. Your email address is shared with
+              Hostinger for this purpose.
             </li>
             <li>
               <strong>OpenAI</strong> — powers the optional chat assistant. Messages you send to the
