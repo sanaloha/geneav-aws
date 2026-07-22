@@ -328,60 +328,6 @@ export default function Home() {
         </div>
       </Section>
 
-      {/* Roadmap — existing planned work, kept explicitly labelled as not shipped */}
-      <Section>
-        <PageHeader
-          level="h2"
-          eyebrow={<Badge tone="neutral">Coming soon</Badge>}
-          title="What's next for geneav"
-          lead="Features we're building. Not available yet — everything below is planned work."
-        />
-        <div className="grid gap-5 md:grid-cols-2">
-          <Card>
-            <div className="mb-2 flex flex-wrap items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-bg text-[13px] font-extrabold text-brand-fg">
-                1
-              </span>
-              <h3 className="m-0 text-lg font-bold text-ink">Customized corporate use</h3>
-              <Badge tone="neutral" uppercase className="ml-auto">
-                Next
-              </Badge>
-            </div>
-            <p className="m-0 text-[15px] text-ink-muted">
-              Login and create your API key to start using geneav.
-            </p>
-            <ul className="mt-3 list-none space-y-1 p-0">
-              {[
-                "Dedicated APIs for virus scanning",
-                "Secure, encrypted workspace",
-                "High availability",
-                "Advanced vulnerability checks",
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-2 text-[15px] text-ink-muted">
-                  <CheckCircle2 size={16} className="mt-1 shrink-0 text-success-accent" aria-hidden />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <Card>
-            <div className="mb-2 flex flex-wrap items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-bg text-[13px] font-extrabold text-brand-fg">
-                2
-              </span>
-              <h3 className="m-0 text-lg font-bold text-ink">geneav chat agent</h3>
-              <Badge tone="neutral" uppercase className="ml-auto">
-                Planned
-              </Badge>
-            </div>
-            <p className="m-0 text-[15px] text-ink-muted">
-              Ask about scan results and threats in plain language, and get help wiring the API
-              into your own application.
-            </p>
-          </Card>
-        </div>
-      </Section>
-
       {/* FAQ */}
       <Section tone="subtle">
         <PageHeader level="h2" align="center" title="Questions, answered honestly" />
