@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState, type ReactNode, type FormEvent } from
 import Badge, { type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import Card from "../ui/Card";
-import PageHeader from "../ui/PageHeader";
 import { Field, Input } from "../ui/Field";
 import { notifyAuthChanged } from "../lib/authEvents";
 
@@ -326,11 +325,12 @@ export default function Dashboard() {
   if (authState === "anon") {
     return (
       <>
-        <PageHeader
-          align="center"
-          title="Login"
-          lead="Manage your API keys and track your usage."
-        />
+        {/* No visible "Login" title — the tabbed card is self-explanatory — but
+            the page still needs one <h1> for assistive tech and SEO. */}
+        <h1 className="sr-only">Sign in to geneav</h1>
+        <p className="mb-7 text-center text-[17px] leading-relaxed text-ink-muted">
+          Manage your API keys and track your usage.
+        </p>
         <div className="mx-auto max-w-md">
         <Card>
           <div className="mb-5 flex gap-1.5 rounded-xl border border-line bg-surface-sunken p-1">
