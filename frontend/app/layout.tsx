@@ -139,8 +139,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   heading: "Company",
                   items: [
                     { href: "/about", label: "About" },
-                    { href: "/legal", label: "Legal & attribution" },
+                    { href: "/security", label: "Security" },
+                    { href: "/terms", label: "Terms" },
                     { href: "/privacy", label: "Privacy" },
+                    { href: "/legal", label: "Legal & attribution" },
                     { href: "mailto:admin@geneav.com", label: "Contact" },
                   ],
                 },

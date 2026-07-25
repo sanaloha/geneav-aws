@@ -83,6 +83,10 @@ const features = [
   },
 ];
 
+// Quotas and rates here must match `geneav.plans.definitions` in the backend's
+// application.yml — that config is what actually meters and throttles.
+// There is no checkout yet, so every paid CTA opens an email rather than
+// implying self-serve upgrade. Swap to billing links once Stripe is wired up.
 const plans = [
   {
     name: "Free",
@@ -90,23 +94,42 @@ const plans = [
     period: "/month",
     note: "No card required",
     cta: { label: "Create an API key", href: "/login", variant: "secondary" as const },
-    limits: ["100 scans per month", "10 requests per minute", "Full REST API access", "OpenAPI docs"],
+    limits: ["500 scans per month", "10 requests per minute", "Full REST API access", "OpenAPI docs"],
+  },
+  {
+    name: "Starter",
+    price: "$19",
+    period: "/month",
+    note: "Billed monthly",
+    cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "secondary" as const },
+    limits: ["10,000 scans per month", "30 requests per minute", "Everything in Free"],
   },
   {
     name: "Pro",
-    price: "$10",
+    price: "$39",
     period: "/month",
-    // There is no checkout yet, so the CTA opens an email rather than implying
-    // self-serve upgrade. Swap to a billing link once Stripe is wired up.
     note: "Billed monthly",
     cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "primary" as const },
     limits: [
       "100,000 scans per month",
       "120 requests per minute",
-      "Everything in Free",
+      "Everything in Starter",
       "Priority support",
     ],
     featured: true,
+  },
+  {
+    name: "Scale",
+    price: "$149",
+    period: "/month",
+    note: "Billed monthly",
+    cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "secondary" as const },
+    limits: [
+      "500,000 scans per month",
+      "300 requests per minute",
+      "Everything in Pro",
+      "Volume pricing available",
+    ],
   },
 ];
 
@@ -297,15 +320,20 @@ export default function Home() {
           title="Start free, scale when you need to"
           lead="Quotas are enforced per API key, with explicit responses when you reach them."
         />
-        <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
+        {/* Four tiers, so this uses the full content width rather than the
+            max-w-3xl the two-tier layout needed. */}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan) => (
             <Card
               key={plan.name}
               className={plan.featured ? "border-brand ring-1 ring-brand" : undefined}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="m-0 text-lg font-bold text-ink">{plan.name}</h3>
-                {plan.featured && <Badge tone="brand">Most capacity</Badge>}
+                {/* "Recommended" rather than "Most popular" — there is no usage
+                    data to support a popularity claim, and Scale now has the
+                    most capacity, so the old label would be wrong too. */}
+                {plan.featured && <Badge tone="brand">Recommended</Badge>}
               </div>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-3xl font-extrabold tracking-tight text-ink">{plan.price}</span>

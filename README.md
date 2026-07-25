@@ -233,8 +233,10 @@ cd backend && mvn test
 | Max concurrent scans | `GENEAV_RATELIMIT_SCAN_CONCURRENCY` | `4`             |
 | Postgres JDBC URL    | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/geneav` |
 | Postgres user / pass | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | `geneav` / `geneav` |
-| Free plan quota / rpm| `GENEAV_PLAN_FREE_QUOTA` / `GENEAV_PLAN_FREE_RPM` | `100` / `10` |
+| Free plan quota / rpm| `GENEAV_PLAN_FREE_QUOTA` / `GENEAV_PLAN_FREE_RPM` | `500` / `10` |
+| Starter plan quota / rpm | `GENEAV_PLAN_STARTER_QUOTA` / `GENEAV_PLAN_STARTER_RPM` | `10000` / `30` |
 | Pro plan quota / rpm | `GENEAV_PLAN_PRO_QUOTA` / `GENEAV_PLAN_PRO_RPM` | `100000` / `120` |
+| Scale plan quota / rpm | `GENEAV_PLAN_SCALE_QUOTA` / `GENEAV_PLAN_SCALE_RPM` | `500000` / `300` |
 
 > In production, set a strong `POSTGRES_PASSWORD` in the VM's `.env.prod` (the prod
 > compose refuses to start without it). The Postgres data lives in the

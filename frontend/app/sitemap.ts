@@ -9,6 +9,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/features", priority: 0.8, changeFrequency: "monthly" },
     { path: "/developers", priority: 0.9, changeFrequency: "monthly" },
     { path: "/about", priority: 0.6, changeFrequency: "monthly" },
+    // Buyers reach /security straight from questionnaires and vendor reviews,
+    // so it earns a higher priority than the other trust pages.
+    { path: "/security", priority: 0.5, changeFrequency: "monthly" },
+    { path: "/terms", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal", priority: 0.3, changeFrequency: "monthly" },
     { path: "/privacy", priority: 0.3, changeFrequency: "monthly" },
   ];
