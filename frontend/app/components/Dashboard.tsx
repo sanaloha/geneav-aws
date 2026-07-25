@@ -394,6 +394,10 @@ export default function Dashboard() {
             {mode === "signup" && (
               <p className="mt-3 text-center text-[13px] leading-relaxed text-ink-muted">
                 By creating an account, you agree to our{" "}
+                <Link href="/terms" className="font-semibold text-brand hover:text-brand-hover">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
                 <Link href="/privacy" className="font-semibold text-brand hover:text-brand-hover">
                   Privacy Policy
                 </Link>
