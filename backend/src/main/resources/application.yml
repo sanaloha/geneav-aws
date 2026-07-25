@@ -103,15 +103,27 @@ geneav:
     default-plan: free
     # Commercial tiers. monthly-scan-quota caps billable scans per calendar month
     # (402 when exhausted); rate-per-minute / burst are this plan's token bucket.
+    # Prices are not modelled here — the backend meters, the pricing page sells.
+    # NOTE: scale's 300/min is 5/sec, above scan-max-concurrent (4). A single
+    # scale account at full rate can therefore queue on the global semaphore;
+    # raise the concurrency cap (and the VM) before selling that tier hard.
     definitions:
       free:
-        monthly-scan-quota: ${GENEAV_PLAN_FREE_QUOTA:100}
+        monthly-scan-quota: ${GENEAV_PLAN_FREE_QUOTA:500}
         rate-per-minute: ${GENEAV_PLAN_FREE_RPM:10}
         burst: ${GENEAV_PLAN_FREE_BURST:10}
+      starter:
+        monthly-scan-quota: ${GENEAV_PLAN_STARTER_QUOTA:10000}
+        rate-per-minute: ${GENEAV_PLAN_STARTER_RPM:30}
+        burst: ${GENEAV_PLAN_STARTER_BURST:30}
       pro:
         monthly-scan-quota: ${GENEAV_PLAN_PRO_QUOTA:100000}
         rate-per-minute: ${GENEAV_PLAN_PRO_RPM:120}
         burst: ${GENEAV_PLAN_PRO_BURST:60}
+      scale:
+        monthly-scan-quota: ${GENEAV_PLAN_SCALE_QUOTA:500000}
+        rate-per-minute: ${GENEAV_PLAN_SCALE_RPM:300}
+        burst: ${GENEAV_PLAN_SCALE_BURST:150}
 
 springdoc:
   swagger-ui:

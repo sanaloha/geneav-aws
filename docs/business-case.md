@@ -5,6 +5,13 @@
 **Jira:** [GN-12](https://santoshsscet.atlassian.net/browse/GN-12) — Post Production activities (epic GN-3)
 **Audience:** §1–§7 are written for a commercial reader; §8 is a technical appendix.
 
+> **Update, 25 July 2026 — the pricing recommendation has shipped.** Pro is now **$39/month**,
+> with **Starter ($19)** and **Scale ($149)** added to close the 1,000x gap between Free and Pro,
+> and Free raised from 100 to 500 scans. Break-even is consequently **2 Pro customers, not 8**.
+> The analysis below is preserved as originally written: the $10 figures in §1, §5.3 and §5.5
+> record the position that *prompted* the change, not current pricing. See the pricing page for
+> what is live.
+
 ---
 
 ## 1. Executive summary
@@ -417,8 +424,8 @@ sellable. In priority order, as candidate issues under epic GN-3:
 
 | # | Item | Why |
 |---|---|---|
-| 1 | Write a Terms of Service | Cannot take payment without one. Pairs with the existing privacy policy. |
-| 2 | Reprice Pro to $29–$49/month | §5.5. Cheap to do, immediately improves credibility and break-even. |
+| 1 | ~~Write a Terms of Service~~ — **done** | Shipped at `/terms`, alongside a `/security` page. Liability cap and indemnity still want a lawyer's review. |
+| 2 | ~~Reprice Pro~~ — **done at $39** | §5.5. Shipped with Starter/Scale tiers and a larger free allowance; see the update note at the top. |
 | 3 | Wire up Stripe checkout | Converts the existing quota machinery into revenue. Everything else is already built. |
 | 4 | Benchmark sustained throughput | §5.6. Determines what a 100,000-scan entitlement actually commits to. |
 
