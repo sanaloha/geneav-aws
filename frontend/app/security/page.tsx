@@ -69,10 +69,11 @@ export default function Security() {
             Once the verdict is returned, the file is gone.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-            Our server logs record the <strong>file name, size, declared content type, and verdict</strong>{" "}
-            for operational and diagnostic purposes. They never contain file contents. Scanning
-            happens entirely within our own infrastructure — your files are not sent to any third
-            party, and they are not used to train anything.
+            Our server logs record only the <strong>file extension, size, and verdict</strong> for
+            operational and diagnostic purposes — never the file contents, and never the filename,
+            which frequently carries personal information. Scanning happens entirely within our own
+            infrastructure — your files are not sent to any third party, and they are not used to
+            train anything.
           </p>
         </Card>
 
