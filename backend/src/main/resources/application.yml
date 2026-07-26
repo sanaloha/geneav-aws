@@ -69,6 +69,28 @@ geneav:
     from-name: ${GENEAV_MAIL_FROM_NAME:geneav}
     login-url: ${GENEAV_MAIL_LOGIN_URL:http://localhost:3000/login}
     reset-url: ${GENEAV_MAIL_RESET_URL:http://localhost:3000/reset-password}
+  chat:
+    # Predefined questions shown as chips in the widget. Picking one is answered
+    # straight from here — no model call, no tokens — which is the whole point of
+    # offering them. Keep the wording in step with ChatService.SYSTEM_PROMPT and
+    # the site FAQ (frontend/app/page.tsx); three copies that disagree would be
+    # worse than no chips at all. Answers stay short: they render in a 380px bubble.
+    suggestions:
+      - id: file-size
+        question: "What is the maximum file size?"
+        answer: "Up to 25 MB per upload. Anything larger returns 413."
+      - id: file-types
+        question: "What file types are supported?"
+        answer: "PDF, Microsoft Office documents, plain text, CSV, RTF, and ZIP archives. Unsupported types return 415."
+      - id: retention
+        question: "Do you store the documents I send?"
+        answer: "No. Files are streamed to the scan engine and discarded once the verdict is produced — never written to disk."
+      - id: quota
+        question: "What happens when I hit my quota?"
+        answer: "You get an explicit 402 when the monthly scan quota is exhausted, and a 429 with a Retry-After header if you exceed the per-minute rate limit. Nothing fails silently."
+      - id: detection
+        question: "What does geneav actually detect?"
+        answer: "Known malware, viruses, trojans, worms, and malicious documents, using ClamAV's signature database. Like any signature-based scanner it complements layered security rather than replacing it."
   openai:
     # Chat is disabled until an API key is provided; the /chat endpoint then returns 503.
     api-key: ${OPENAI_API_KEY:}

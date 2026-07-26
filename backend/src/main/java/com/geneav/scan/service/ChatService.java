@@ -30,6 +30,10 @@ public class ChatService {
      * Keeps the assistant on-topic. It should answer only questions about geneav,
      * its document scanning, and the safety it provides, and politely decline
      * anything else.
+     *
+     * <p>The same facts are stated in two other places — the canned chip answers
+     * under {@code geneav.chat.suggestions} in application.yml, and the site FAQ in
+     * frontend/app/page.tsx. Change one, check the other two.
      */
     private static final String SYSTEM_PROMPT = """
             You are the geneav assistant, a helpful chatbot embedded on the geneav website.

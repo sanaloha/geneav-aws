@@ -1,6 +1,8 @@
 package com.geneav.scan.controller;
 
 import com.geneav.scan.dto.ChatReply;
+import com.geneav.scan.dto.ChatSuggestion;
+import com.geneav.scan.service.ChatProperties;
 import com.geneav.scan.service.ChatService;
 import com.geneav.scan.web.ApiExceptionHandler;
 import com.geneav.scan.web.ScanException;
@@ -16,16 +18,26 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ChatControllerTest {
 
+    private static final ChatSuggestion SUGGESTION =
+            new ChatSuggestion("file-size", "What is the maximum file size?", "Up to 25 MB per upload.");
+
     private final ChatService chatService = Mockito.mock(ChatService.class);
     private final MockMvc mvc = MockMvcBuilders
-            .standaloneSetup(new ChatController(chatService))
+            .standaloneSetup(new ChatController(chatService, suggesting(SUGGESTION)))
             .setControllerAdvice(new ApiExceptionHandler())
             .build();
+
+    private static ChatProperties suggesting(ChatSuggestion... suggestions) {
+        ChatProperties props = new ChatProperties();
+        props.setSuggestions(List.of(suggestions));
+        return props;
+    }
 
     @Test
     void validConversationReturnsReply() throws Exception {
@@ -99,5 +111,52 @@ class ChatControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.enabled").value(false))
                 .andExpect(jsonPath("$.status").value("DISABLED"));
+    }
+
+    @Test
+    void suggestionsAreReturnedWithTheirAnswers() throws Exception {
+        mvc.perform(get("/api/v1/chat/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value("file-size"))
+                .andExpect(jsonPath("$[0].question").value("What is the maximum file size?"))
+                .andExpect(jsonPath("$[0].answer").value("Up to 25 MB per upload."));
+    }
+
+    /**
+     * The reason these chips exist: serving one must not touch the model. If this
+     * ever fails, predefined questions have started costing tokens.
+     */
+    @Test
+    void suggestionsNeverReachTheChatService() throws Exception {
+        mvc.perform(get("/api/v1/chat/suggestions")).andExpect(status().isOk());
+
+        Mockito.verifyNoInteractions(chatService);
+    }
+
+    @Test
+    void suggestionsAreCacheable() throws Exception {
+        mvc.perform(get("/api/v1/chat/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "max-age=3600, public"));
+    }
+
+    /** Canned answers cost nothing, so they stay useful even with no API key set. */
+    @Test
+    void suggestionsAreServedWhenChatIsUnconfigured() throws Exception {
+        Mockito.when(chatService.isConfigured()).thenReturn(false);
+
+        mvc.perform(get("/api/v1/chat/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void noConfiguredSuggestionsYieldsAnEmptyList() throws Exception {
+        MockMvcBuilders.standaloneSetup(new ChatController(chatService, suggesting()))
+                .build()
+                .perform(get("/api/v1/chat/suggestions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
     }
 }
