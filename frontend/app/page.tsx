@@ -133,6 +133,9 @@ const plans = [
   },
 ];
 
+// These answers are also stated in the chat assistant's system prompt
+// (backend ChatService.java) and as canned chip answers under
+// geneav.chat.suggestions in application.yml. Change one, check the other two.
 const faqs = [
   {
     q: "What does geneav actually detect?",
