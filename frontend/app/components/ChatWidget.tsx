@@ -80,10 +80,8 @@ export default function ChatWidget() {
   }, [open]);
 
   // With no API key configured the model is unreachable, so offering a text box
-  // would just produce a 503. The canned answers cost nothing and still work,
-  // and become the only thing on offer — so they stay visible.
+  // would just produce a 503. The canned answers cost nothing and still work.
   const assistantOffline = assistantEnabled === false;
-  const showSuggestions = suggestions.length > 0 && (messages.length === 1 || assistantOffline);
 
   /**
    * Answers a predefined question from the payload the server already sent —
@@ -183,22 +181,6 @@ export default function ChatWidget() {
                 {m.content}
               </div>
             ))}
-            {/* Normally offered only while the transcript is still just the
-                greeting, so they introduce the assistant rather than compete with
-                a live conversation. See showSuggestions for the offline case. */}
-            {showSuggestions && (
-              <div className="flex flex-col items-start gap-2" role="group" aria-label="Suggested questions">
-                {suggestions.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => pick(s)}
-                    className="max-w-[90%] rounded-full border border-line bg-surface px-3 py-1.5 text-left text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                  >
-                    {s.question}
-                  </button>
-                ))}
-              </div>
-            )}
             {loading && (
               <div className="max-w-[85%] self-start rounded-xl rounded-bl-[4px] border border-line bg-surface-sunken px-3 py-2.5 text-sm tracking-[2px] text-ink-muted">
                 …
@@ -206,6 +188,30 @@ export default function ChatWidget() {
             )}
             {error && <div className="self-center text-center text-[13px] text-danger">{error}</div>}
           </div>
+
+          {/* Sits between the transcript and the input, outside the scroll area, so
+              it stays reachable for the whole conversation rather than only at the
+              greeting. A canned answer is free at any point, not just the first
+              turn — and when the assistant is offline these are the only way to
+              ask anything. One line, scrolled horizontally, so the panel keeps
+              nearly all its height for the transcript. */}
+          {suggestions.length > 0 && (
+            <div
+              className="flex shrink-0 gap-2 overflow-x-auto border-t border-line px-3 py-2"
+              role="group"
+              aria-label="Suggested questions"
+            >
+              {suggestions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => pick(s)}
+                  className="whitespace-nowrap rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  {s.question}
+                </button>
+              ))}
+            </div>
+          )}
 
           {assistantOffline ? (
             <div className="border-t border-line bg-surface-subtle px-4 py-3 text-center text-[13px] text-ink-muted">
