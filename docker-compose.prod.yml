@@ -113,11 +113,14 @@ services:
       # Signs the Umami session token. Fail fast rather than booting with a
       # default that would invalidate every login on the next restart.
       APP_SECRET: ${UMAMI_APP_SECRET:?set UMAMI_APP_SECRET in .env.prod}
-      # Served under a path on the existing certificate rather than a subdomain,
-      # so there is no second DNS record and no second ACME challenge.
-      BASE_PATH: /stats
-      # The default tracker filename is on every ad-blocking filter list by name.
-      # A neutral name on a first-party path is what makes the numbers usable.
+      # NO BASE_PATH. Next.js bakes its base path in at build time, so this
+      # prebuilt image serves the UI and the /api/send collection endpoint at the
+      # root regardless of what BASE_PATH says at runtime — under the apex that
+      # endpoint would collide with the scan API. Caddy gives it
+      # analytics.geneav.com instead, where the root is its own.
+      #
+      # The default tracker filename is on every ad-blocking filter list by name,
+      # so it is renamed even though the subdomain is the bigger tell.
       TRACKER_SCRIPT_NAME: s.js
       DISABLE_TELEMETRY: "1"
 

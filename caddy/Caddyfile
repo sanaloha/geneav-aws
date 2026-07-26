@@ -10,6 +10,21 @@ www.geneav.com {
 	redir https://geneav.com{uri} permanent
 }
 
+# Self-hosted analytics, on its own subdomain.
+#
+# It cannot live on a path under the apex: Umami is a Next.js app and its
+# BASE_PATH is baked in at BUILD time, so the prebuilt image serves its UI and
+# its /api/send collection endpoint at the root no matter what BASE_PATH says at
+# runtime. Under the apex that endpoint would collide with the scan API, which
+# owns /api/*. A subdomain gives it a root of its own and needs no custom image.
+#
+# Hardcoded rather than derived from GENEAV_HOST, matching the www block above.
+# Caddy obtains its certificate automatically on first request.
+analytics.geneav.com {
+	encode gzip
+	reverse_proxy umami:3000
+}
+
 {$GENEAV_HOST} {
 	encode gzip
 
@@ -32,15 +47,6 @@ www.geneav.com {
 	@docs path /docs /docs/* /api-docs /api-docs/* /swagger-ui /swagger-ui/*
 	handle @docs {
 		reverse_proxy backend:8080
-	}
-
-	# Self-hosted analytics. Umami runs with BASE_PATH=/stats, so it expects the
-	# prefix intact — handle, not handle_path. Serving it first-party here (rather
-	# than on a subdomain) reuses this certificate and keeps the tracker script on
-	# the same origin as the page, which is what gets it past blocklists.
-	@umami path /stats /stats/*
-	handle @umami {
-		reverse_proxy umami:3000
 	}
 
 	# Everything else → frontend (Next.js).
