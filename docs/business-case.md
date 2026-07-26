@@ -327,8 +327,20 @@ The problem is different, and twofold:
 
 **Recommendation: reprice Pro to $29–$49/month.** At $39, geneav remains ~3x cheaper than
 attachmentAV's equivalent tier and ~50x cheaper than AttachmentScanner, while break-even drops from
-8 customers to 2. Nothing about the value proposition weakens; the "20–70x cheaper than building it
-yourself" argument (§5.4) is unaffected.
+8 customers to 2. Nothing about the value proposition weakens.
+
+> **Correction, 26 July 2026.** This paragraph originally claimed the "20–70x cheaper than building
+> it yourself" argument (§5.4) was *unaffected* by the repricing. That was wrong. The ratio is
+> self-hosting cost ÷ Pro price, so quadrupling the denominator moves it directly:
+>
+> | Basis | Self-host | Pro | Ratio |
+> |---|---|---|---|
+> | Monthly running cost | $220–$670 | $39 | **5.6–17x** |
+> | Year one, incl. the $6,000–$24,000 build | $8,640–$32,040 | $468 | **18–68x** |
+>
+> "20–70x" survives only as the **year-one** figure, where the one-time integration build is counted —
+> which is the saving §5.4 says is the real one. As a claim about monthly cost it overstates by ~4x.
+> Marketing copy must say which basis it means; see [`marketing-plan.md`](marketing-plan.md) §2.1.
 
 ### 5.6 Capacity ceiling
 

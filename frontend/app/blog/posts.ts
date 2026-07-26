@@ -26,6 +26,16 @@ export type Post = {
 
 export const posts = [
   {
+    slug: "what-it-costs-to-self-host-clamav",
+    title: "What it actually costs to self-host ClamAV",
+    description:
+      "The engine is free; the scanning service around it is not. A full cost model — the VM, the " +
+      "integration build, and the operations time — with every assumption stated.",
+    date: "2026-07-26",
+    readingMinutes: 8,
+    tag: "Economics",
+  },
+  {
     slug: "your-file-upload-endpoint-has-no-antivirus",
     title: "Your file upload endpoint has no antivirus",
     description:
