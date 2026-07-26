@@ -51,8 +51,14 @@ services:
 
   clamav:
     restart: unless-stopped
-    # clamd holds the full signature database resident (~1.5-2 GB). Give it headroom
-    # or it gets OOM-killed mid-scan. This is the main driver of VM sizing (use B2ms/8GiB).
+    # clamd holds the full signature database resident. MEASURED 26 Jul 2026 on this
+    # VM: VmRSS 974 MB, VmHWM 987 MB — about 1 GB, not the ~1.5-2 GB previously
+    # asserted here and across the docs.
+    #
+    # 3g is therefore generous rather than tight, and deliberately so: it is a cap,
+    # not a reservation, so unused headroom costs nothing. With
+    # CLAMD_CONF_ConcurrentDatabaseReload=no now set in the base compose file, the
+    # reload spike that this headroom was really guarding against no longer happens.
     mem_limit: 3g
 
   postgres:
@@ -124,9 +130,59 @@ services:
       TRACKER_SCRIPT_NAME: s.js
       DISABLE_TELEMETRY: "1"
 
+  # Nightly pg_dump with retention. compliance-roadmap.md §6 item 6.
+  #
+  # Until now the only backup was an ad-hoc pg_dump documented in db-access.md,
+  # which meant the privacy policy's line about records persisting "briefly in
+  # backups" described something that did not exist. It does now.
+  #
+  # Deliberately a dump, not a volume snapshot: a custom-format dump restores
+  # selectively with pg_restore and survives a Postgres major-version bump, which
+  # a copy of the data directory does not.
+  #
+  # NOTE: this writes to a Docker volume on the SAME HOST as the database. It
+  # protects against dropped tables, bad migrations and application bugs. It does
+  # NOT protect against losing the VM. Shipping these off-box is the next step.
+  postgres-backup:
+    image: postgres:16-alpine
+    container_name: geneav-postgres-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - postgres-backups:/backups
+    entrypoint: ["sh", "-c"]
+    # One-element list: a bare string gets word-split and `sh -c` would receive
+    # only the first token.
+    command:
+      - |
+        echo "backup loop started; retention $${BACKUP_RETENTION_DAYS}d"
+        while true; do
+          ts=$$(date -u +%Y%m%dT%H%M%SZ)
+          for db in ${POSTGRES_DB:-geneav} umami; do
+            out="/backups/$${db}-$${ts}.dump"
+            if pg_dump -h postgres -U ${POSTGRES_USER:-geneav} -d "$${db}" -Fc -f "$${out}" 2>/tmp/err; then
+              echo "$$(date -u +%FT%TZ) ok   $${out} ($$(du -h "$${out}" | cut -f1))"
+            else
+              # A missing umami database on a fresh box is not a failure worth
+              # crash-looping over; a failing geneav dump is worth shouting about.
+              echo "$$(date -u +%FT%TZ) FAIL $${db}: $$(cat /tmp/err)" >&2
+              rm -f "$${out}"
+            fi
+          done
+          deleted=$$(find /backups -name '*.dump' -mtime +$${BACKUP_RETENTION_DAYS} -print -delete | wc -l)
+          [ "$${deleted}" -gt 0 ] && echo "$$(date -u +%FT%TZ) pruned $${deleted} expired dump(s)"
+          sleep 86400
+        done
+
 volumes:
   caddy-data:
   caddy-config:
+  postgres-backups:
 
 # ---------------------------------------------------------------------------
 # NOTE ON THE APP PORT MAPPINGS (3000 / 8080 / 3310):

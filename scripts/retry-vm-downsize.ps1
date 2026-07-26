@@ -27,25 +27,28 @@
 
     WHY THIS IS PARKED (26 Jul 2026)
     --------------------------------
-    Two things must be true before this is scheduled, and neither is today:
+    Updated 26 Jul 2026 with real measurements. Two of the three blockers are gone.
 
-    1. Umami. Marketing plan Phase 0 adds a self-hosted analytics container
-       (docker-compose.prod.yml) plus its own database in the existing Postgres.
-       That is roughly another 250-500 MB on top of the ~1.4 GiB measured below.
-       B1ms is 2 GiB total, and ClamAV alone holds ~1.5-2 GB resident. It does
-       not fit. B2s (4 GiB) plausibly does, but has not been measured with Umami
-       running.
+    1. RESOLVED - memory. Everything here previously rested on "ClamAV holds
+       ~1.5-2 GB resident", which was an estimate and was roughly 2x high.
+       Measured on this VM: clamd VmRSS 974 MB, VmHWM 987 MB, and the WHOLE stack
+       including Umami is 2.0 GB of 7.8 GB.
 
-    2. The ConcurrentDatabaseReload prerequisite in .NOTES is NOT met. That note
-       claims the fix is deployed; it is not. There is no clamd.conf, no
-       ConcurrentDatabaseReload setting, and no ClamAV config mount anywhere in
-       the repo, and docs/business-case.md §4.1 still records it as unset. The
-       only guard against the freshclam reload memory spike is the 3 GB container
-       limit — which a 2 GiB VM cannot honour.
+    2. RESOLVED - reload spike. CLAMD_CONF_ConcurrentDatabaseReload=no is now set
+       in docker-compose.yml, so a signature reload no longer loads the new
+       database alongside the old one. (The earlier .NOTES claim that this was
+       already deployed was simply wrong; it is deployed now.)
 
-    To resume: set ConcurrentDatabaseReload for real, benchmark the stack with
-    Umami running, then target B2s rather than B1ms unless the measurement says
-    otherwise.
+    3. OPEN - capacity. Throughput has still never been benchmarked
+       (docs/business-case.md 5.6), so nobody knows how many concurrent scans a
+       given SKU sustains. Halving the vCPU count without that number is guessing.
+
+    Target change: B1ms (2 GiB) is OFF the list. The stack already uses 2.0 GB, so
+    it would not fit even now that clamd is smaller than believed. B2s (4 GiB,
+    2 vCPU) fits comfortably on memory and is the only sensible target.
+
+    To resume: land the throughput benchmark, confirm 2 vCPU sustains the expected
+    concurrency, then run with -Resume.
 
 .NOTES
     Prerequisite: the ClamAV ConcurrentDatabaseReload fix must already be
@@ -59,9 +62,9 @@ param(
     [string]  $ResourceGroup = 'GENEAV-RG',
     [string]  $VmName        = 'geneav-vm',
     [string]  $Location      = 'eastus',
-    # Cheapest first. B1ms is the target; B2s is the fallback worth taking if it
-    # appears first, since it is still less than half the current bill.
-    [string[]]$Targets       = @('Standard_B1ms', 'Standard_B2s'),
+    # B1ms (2 GiB) was removed 26 Jul 2026: the stack measures 2.0 GB, so it does
+    # not fit regardless of clamd being smaller than previously believed.
+    [string[]]$Targets       = @('Standard_B2s'),
     [string]  $SiteUrl       = 'https://geneav.com',
     [string]  $LogPath       = "$HOME\.geneav\vm-downsize.log",
     # Report what would happen, change nothing.

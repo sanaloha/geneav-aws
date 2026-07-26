@@ -148,7 +148,7 @@ of the argument credible.
 | Layer | Raw ClamAV | geneav |
 |---|---|---|
 | Interface | `clamd` TCP socket, INSTREAM binary protocol | HTTPS multipart, JSON verdict, OpenAPI spec |
-| Memory management | You size, monitor and OOM-debug a ~1.5–2 GB resident signature DB | Handled; 3 GB container limit tuned for it ([`docker-compose.prod.yml:50-52`](../docker-compose.prod.yml)) |
+| Memory management | You size, monitor and OOM-debug a ~1 GB resident signature DB (measured 974 MB) | Handled; container limit and `ConcurrentDatabaseReload no` both set ([`docker-compose.prod.yml`](../docker-compose.prod.yml), [`docker-compose.yml`](../docker-compose.yml)) |
 | Signature updates | You own the freshclam pipeline | Handled, persisted in a volume |
 | Abuse protection | **None whatsoever** | Per-IP and per-account token buckets, plus a global concurrency cap ([`application.yml:80-100`](../backend/src/main/resources/application.yml)) |
 | Identity | None | Accounts, BCrypt passwords, session cookies |
@@ -217,10 +217,12 @@ in the pricing calculator; the Hostinger mailbox cost was not independently veri
 are under 10% of the total and do not affect any conclusion below.
 
 Notes:
-- **The 8 GiB VM is not over-provisioned.** `clamd` holds the full signature database resident
-  (~1.5–2 GB), which is the stated driver of VM sizing
-  ([`deploy-plan.md:78-79`](../deploy-plan.md), [`docker-compose.prod.yml:50-51`](../docker-compose.prod.yml)).
-  B2s (4 GiB) is described in-repo as the bare floor.
+- **The 8 GiB VM is larger than it needs to be.** `clamd` holds the full signature database
+  resident, and this was previously stated here as ~1.5–2 GB. **Measured 26 July 2026 it is
+  974 MB resident, peaking at 987 MB** — about half the figure this section was built on. The
+  whole stack (ClamAV, backend, frontend, Postgres, Caddy, Umami) uses **~2.0 GB of 7.8 GB**.
+  B2s (4 GiB) now looks like a comfortable fit rather than a floor, and the VM line is the
+  largest single cost in the table above. See the sizing note in §5.6.
 - **OpenAI is not a fixed cost.** With no API key the chat endpoint returns 503 and the rest of the
   product is unaffected ([`ChatService.java:108-111`](../backend/src/main/java/com/geneav/scan/service/ChatService.java)).
   It is a marketing/support feature, entirely outside the scan path.
@@ -356,12 +358,38 @@ scan latency *L*:
 
 These are ceilings on the semaphore alone. **The B2ms is a burstable SKU**: sustained CPU above its
 baseline drains burst credits, after which the VM is throttled. In practice CPU credits, not the
-semaphore, are likely the binding constraint — and neither has been measured.
+semaphore, are likely the binding constraint.
 
-**No throughput benchmark exists in this repository.** Before selling a 100,000-scan entitlement,
-run one: sustained scan rate on a representative document mix, watching CPU credit balance, until
-either latency degrades or credits exhaust. Until then, the number of Pro customers one box supports
-is unknown.
+#### Measured, 26 July 2026
+
+The latency assumptions above were guesses, and they were **one to two orders of magnitude too
+pessimistic**. Measured on the production VM against `localhost:8080`, random-byte payloads,
+sequential requests:
+
+| Payload | First request (cold) | Warm, steady state |
+|---|---|---|
+| 64 KB | 62 ms | **~16 ms** |
+| 256 KB | 58 ms | **~17 ms** |
+| 1 MB | 131 ms | **~30 ms** |
+
+Host at the time: 2 vCPU, load average 0.06 — effectively idle.
+
+At ~17 ms a scan, the 4-slot semaphore permits roughly **235 scans/second** in theory, against the
+20/second the most optimistic row above assumed. Put in commercial terms, a full 100,000-scan Pro
+entitlement is about **28 minutes of total scan time per month**. The semaphore is nowhere near
+binding at these latencies, and neither is anything else at current volumes.
+
+**What is still not measured.** These are sequential, single-client samples. They establish per-scan
+cost, not saturation behaviour. Four concurrent scans on 2 vCPU will contend, so real throughput
+under load will be below 4 × the single-stream rate, and the burst-credit question is untouched.
+[`scripts/benchmark-scan.sh`](../scripts/benchmark-scan.sh) exists to answer that; running it
+properly requires temporarily disabling the per-IP token bucket
+(`GENEAV_RATELIMIT_ENABLED=false`), which needs a backend restart and so has not been done against
+production.
+
+The honest summary has moved from *"the number of Pro customers one box supports is unknown"* to
+*"a single scan costs ~17 ms and the headroom is very large, but the saturation curve is still
+unplotted."*
 
 Two further ceilings worth noting:
 - **Deployment.** `scripts/deploy-vm.sh` inlines the repository into an `az vm run-command` call and
@@ -406,9 +434,12 @@ Grouped by what a buyer would ask about. Everything here is verifiable from the 
 - **Backups are manual only.** `docs/db-access.md:101-104` documents an ad-hoc `pg_dump`; there is no
   scheduled backup or snapshot policy. The privacy policy's reference to records persisting "briefly
   in backups" is not backed by configured automation — worth reconciling.
-- **freshclam reload memory spike is unmitigated.** The quoted ~1.5–2 GB is steady-state resident;
-  a signature reload can transiently double it. `ConcurrentDatabaseReload no` is not set, and the
-  3 GB container limit is the only guard.
+- ~~**freshclam reload memory spike is unmitigated.**~~ **Fixed 26 July 2026.**
+  `CLAMD_CONF_ConcurrentDatabaseReload=no` is now set in [`docker-compose.yml`](../docker-compose.yml),
+  so a signature reload no longer loads the new database alongside the old one. The trade is a brief
+  pause in scanning during a reload instead of a transient doubling of memory — the right way round
+  on a single box with no failover. Steady-state resident is **974 MB measured**, not the ~1.5–2 GB
+  previously quoted here.
 - **No monitoring.** Azure Monitor and uptime checks are planned in `deploy-plan.md` but not
   configured. Actuator exposes `health,info` only.
 - **Host ports remain published in production.** Compose merges `ports:` lists, so 3000/8080/3310

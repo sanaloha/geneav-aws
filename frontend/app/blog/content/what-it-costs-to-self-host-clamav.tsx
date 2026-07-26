@@ -94,10 +94,17 @@ export default function WhatItCostsToSelfHostClamAv() {
 
       <P>
         The instinct is to run this on the smallest box available. You cannot.{" "}
-        <Code>clamd</Code> loads the entire signature database into memory and keeps it resident —
-        roughly <Strong>1.5&ndash;2 GB</Strong> at steady state. That is not a cache you can trim; it
-        is how the daemon works. A 2 GiB instance will not hold it alongside an operating system, and
-        a 4 GiB instance is the bare floor with nothing left for your application.
+        <Code>clamd</Code> loads the entire signature database into memory and keeps it resident. On
+        our production instance that is <Strong>974 MB resident, peaking at 987 MB</Strong> — call it
+        a gigabyte, measured rather than estimated. That is not a cache you can trim; it is how the
+        daemon works.
+      </P>
+
+      <P>
+        A 1 GB instance is therefore out, and a 2 GiB one leaves very little for an operating system,
+        your application and a database. Our whole stack — scanner, API, web frontend, Postgres,
+        reverse proxy — sits at about 2 GB of the 8 GiB box it runs on, so 4 GiB is a realistic
+        floor if you are running more than the scanner.
       </P>
 
       <P>
@@ -109,11 +116,12 @@ export default function WhatItCostsToSelfHostClamAv() {
         a self-hosted ClamAV falls over, and it is invisible until it happens.
       </P>
 
-      <Note tone="warning" title="We are not immune to this">
-        At the time of writing, <Code>ConcurrentDatabaseReload no</Code> is not set on our own
-        deployment either. Our only guard is a 3 GB container memory limit with enough headroom to
-        absorb the spike. We are fixing it. We mention it because a post about operational cost that
-        implied we had already solved everything would not be worth reading.
+      <Note tone="warning" title="We had not set this either">
+        When this post was first drafted, <Code>ConcurrentDatabaseReload no</Code> was not set on our
+        own deployment — the only guard was a 3 GB container limit with enough headroom to absorb the
+        spike. Writing this paragraph is what prompted us to fix it. We are leaving the admission in,
+        because a post about operational cost that implied we had solved everything from the start
+        would not be worth reading.
       </Note>
 
       <H2>Line two: the integration build</H2>

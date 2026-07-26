@@ -32,8 +32,10 @@ error, switch to `sslip.io` (equivalent) or fall back to a self-signed cert. See
 - **No TLS, no auth, no rate limiting.** `POST /api/v1/scan` is fully open. Rate
   limiting and API keys are explicitly out of scope per GN-1.
 - **Containers run as root**, with no resource limits and no `restart:` policy.
-- **ClamAV needs real memory** — `clamd` holds the signature database resident
-  (~1.5–2 GB). This is the main driver of VM sizing.
+- **ClamAV needs real memory** — `clamd` holds the signature database resident.
+  Measured 26 July 2026: **VmRSS 974 MB, peak 987 MB** (~1 GB). Earlier revisions of
+  this document said ~1.5–2 GB; that was an estimate and it was roughly 2x high.
+  Still the largest single consumer, and still the main driver of VM sizing.
 - **End-to-end EICAR detection is still unverified** (`plan.md` marks it pending).
 
 ---
