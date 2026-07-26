@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -77,5 +78,30 @@ class ScanControllerTest {
 
         mvc.perform(multipart("/api/v1/scan").file(file))
                 .andExpect(status().isServiceUnavailable());
+    }
+
+    // Logs outlive the request, so the filename never reaches them — only its
+    // extension does. These pin that down; see ScanController.logExtension.
+
+    @Test
+    void logExtensionKeepsOnlyTheExtension() {
+        assertThat(ScanController.logExtension("Jane_Doe_payslip_2026.pdf")).isEqualTo("pdf");
+        assertThat(ScanController.logExtension("report.final.DOCX")).isEqualTo("docx");
+    }
+
+    @Test
+    void logExtensionHandlesMissingOrUnusableNames() {
+        assertThat(ScanController.logExtension(null)).isEqualTo("none");
+        assertThat(ScanController.logExtension("no-extension")).isEqualTo("none");
+        assertThat(ScanController.logExtension("trailing.")).isEqualTo("none");
+    }
+
+    @Test
+    void logExtensionRefusesToEchoAnythingUnusual() {
+        // A crafted "extension" must not become a way to write arbitrary text
+        // into the log line.
+        assertThat(ScanController.logExtension("x.pdf%0AFAKE-LOG-ENTRY")).isEqualTo("other");
+        assertThat(ScanController.logExtension("x." + "a".repeat(64))).isEqualTo("other");
+        assertThat(ScanController.logExtension("secret.name-with-dashes")).isEqualTo("other");
     }
 }

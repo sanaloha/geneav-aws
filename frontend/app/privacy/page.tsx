@@ -55,8 +55,9 @@ export default function Privacy() {
             Files you submit for scanning are <strong>streamed straight to the detection engine and
             are not written to disk or retained</strong> once the scan completes. We do not keep a
             copy of your file contents. For operational and diagnostic purposes our server logs
-            record the request&apos;s <strong>file name, size, and declared content type</strong>{" "}
-            alongside the verdict — but not the file itself.
+            record only the <strong>file extension and size</strong> alongside the verdict —{" "}
+            <strong>not the file, and not its name</strong>, since filenames themselves often
+            contain personal information.
           </p>
         </Card>
 
