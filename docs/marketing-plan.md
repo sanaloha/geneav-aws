@@ -45,7 +45,8 @@ it verbatim as non-negotiable:
 
 > - Lead with integration and operations, **never** with detection capability.
 > - State the ClamAV dependency openly and early.
-> - Anchor the cost argument on **self-hosting** (20–70x), not on undercutting competitors.
+> - Anchor the cost argument on **self-hosting** (18–68x in year one; 6–17x ongoing — always say
+>   which), not on undercutting competitors.
 > - Name the "no sales call required" advantage over VirusTotal and OPSWAT explicitly.
 
 **The one-line pitch:**
@@ -67,7 +68,7 @@ Each maps to something independently verifiable.
 
 | Pillar | The claim | Why it survives scrutiny |
 |---|---|---|
-| **Cheaper than building it** | ~$220–670/month self-hosted vs $39 Pro — 20–70x | The saving is the 2–4 weeks of integration engineering that never happens (§5.4). Infrastructure is a wash, and conceding that *increases* credibility |
+| **Cheaper than building it** | Year one: ~$8,640–32,040 self-hosted vs $468 Pro — **18–68x**. Ongoing: ~$220–670/mo vs $39 — **6–17x** | The saving is the 2–4 weeks of integration engineering that never happens (§5.4). Infrastructure is a wash, and conceding that *increases* credibility. **Never quote 20–70x against the monthly figure** — that ratio was computed when Pro was $10 and overstates by ~4x today ([`business-case.md`](business-case.md) §5.5 correction) |
 | **No sales call, no card** | Scan a file in the next five minutes | VirusTotal and OPSWAT publish no pricing at all (§5.3). Free tier is 500 scans/month, no card |
 | **Honest by construction** | Files never stored · no tracking cookies · a public [`/security`](../frontend/app/security/page.tsx) page with a "what we have not built yet" section | All verifiable from the code. The `/security` page is a conversion asset, not a liability |
 

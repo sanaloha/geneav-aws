@@ -10,6 +10,7 @@ import { SITE_NAME, SITE_URL } from "../../site";
 import { findPost, formatPostDate, posts, type PostSlug } from "../posts";
 import { Prose } from "../prose";
 import UploadEndpointHasNoAntivirus from "../content/your-file-upload-endpoint-has-no-antivirus";
+import WhatItCostsToSelfHostClamAv from "../content/what-it-costs-to-self-host-clamav";
 
 /**
  * Slug → body. Typed as `Record<PostSlug, …>`, so adding an entry to
@@ -18,6 +19,7 @@ import UploadEndpointHasNoAntivirus from "../content/your-file-upload-endpoint-h
  */
 const bodies: Record<PostSlug, ComponentType> = {
   "your-file-upload-endpoint-has-no-antivirus": UploadEndpointHasNoAntivirus,
+  "what-it-costs-to-self-host-clamav": WhatItCostsToSelfHostClamAv,
 };
 
 export function generateStaticParams() {
