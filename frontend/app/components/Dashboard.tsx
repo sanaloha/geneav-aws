@@ -8,6 +8,8 @@ import Badge, { type BadgeTone } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import Card from "../ui/Card";
 import { Field, Input } from "../ui/Field";
+import { track } from "../lib/analytics";
+import { readAttribution } from "../lib/attribution";
 import { notifyAuthChanged } from "../lib/authEvents";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
@@ -145,20 +147,27 @@ export default function Dashboard() {
       e.preventDefault();
       setAuthBusy(true);
       setAuthError(null);
+      const signingUp = mode === "signup";
       try {
-        const res = await fetch(`${API_BASE}/api/v1/auth/${mode === "signup" ? "signup" : "login"}`, {
+        const res = await fetch(`${API_BASE}/api/v1/auth/${signingUp ? "signup" : "login"}`, {
           ...withCreds,
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          // Attribution only belongs on a signup — this handler is shared with
+          // login, and where a returning user came from is not something we
+          // record.
+          body: JSON.stringify(
+            signingUp ? { email, password, attribution: readAttribution() } : { email, password }
+          ),
         });
         if (!res.ok) {
-          setAuthError(await apiErrorMessage(res, mode === "signup" ? "Sign up failed" : "Sign in failed"));
+          setAuthError(await apiErrorMessage(res, signingUp ? "Sign up failed" : "Sign in failed"));
           return;
         }
         setMe(await res.json());
         setPassword("");
         setAuthState("authed");
+        if (signingUp) track("signup");
         notifyAuthChanged();
       } catch {
         setAuthError(`Could not reach the API at ${API_BASE}.`);
@@ -214,6 +223,9 @@ export default function Dashboard() {
         const body = await res.json();
         setRevealed(body.apiKey);
         setNewKeyName("");
+        // The activation event: a signup that never gets here learned nothing
+        // about the product. See docs/marketing-plan.md §6.
+        track("api-key-created");
         loadData();
       } catch {
         setDataError(`Could not reach the API at ${API_BASE}.`);

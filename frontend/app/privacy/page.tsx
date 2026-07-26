@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Cookie,
   Database,
   FileScan,
@@ -23,7 +24,7 @@ const linkClass = "font-semibold text-brand";
 
 // Shown as the "last updated" date. Kept explicit rather than computed so it
 // reflects when the policy text actually changed, not when the page rendered.
-const LAST_UPDATED = "July 22, 2026";
+const LAST_UPDATED = "July 26, 2026";
 
 export default function Privacy() {
   return (
@@ -45,6 +46,13 @@ export default function Privacy() {
             plus a short prefix and the last four characters so you can recognise it — the full key
             is shown once, at creation, and cannot be recovered afterwards. We also record{" "}
             <strong>usage metrics</strong> (such as your monthly scan count) to enforce plan quotas.
+          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
+            If you arrive from a link or a campaign URL, we store{" "}
+            <strong>where that visit came from</strong> — the referring website and any{" "}
+            <code>utm_*</code> parameters in the address — against your account when you sign up.
+            It tells us which articles and links are worth writing more of. It is recorded once, at
+            signup, and is never used to build a profile of you or shared with anyone.
           </p>
         </Card>
 
@@ -69,6 +77,29 @@ export default function Privacy() {
             so the browser can prove who you are on later requests. It is not readable by JavaScript
             and is used only to keep you signed in. We do not use advertising or third-party
             tracking cookies.
+          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
+            Your browser also keeps the referral information described above in{" "}
+            <strong>sessionStorage</strong> until you sign up or close the tab. It is not a cookie,
+            it is never sent to anyone but us, and it is discarded with the tab.
+          </p>
+        </Card>
+
+        <Card>
+          <BarChart3 size={22} className="mb-3 text-brand" aria-hidden />
+          <h2 className="m-0 text-lg font-bold text-ink">Website analytics</h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">
+            We count page views using <strong>Umami</strong>, which we{" "}
+            <strong>run ourselves on our own server</strong> — no analytics provider receives your
+            data, because there is no analytics provider. It is{" "}
+            <strong>cookieless and does not track you across websites</strong>: it records the page,
+            the referring site, and coarse details like country, browser and device type, with no
+            identifier that persists between visits. We also count a handful of actions in the same
+            way — that a scan was run, that an account was created — never who did them.
+          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
+            This is why you have not been shown a cookie consent banner. There is nothing to consent
+            to, and we would rather keep it that way than gain a little more detail.
           </p>
         </Card>
 

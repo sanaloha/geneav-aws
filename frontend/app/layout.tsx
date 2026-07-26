@@ -2,11 +2,24 @@ import type { Metadata, Viewport } from "next";
 import { ShieldCheck } from "lucide-react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import Script from "next/script";
 import "./globals.css";
 import Nav from "./components/Nav";
+import Attribution from "./components/Attribution";
 import ChatWidget from "./components/ChatWidget";
 import { SITE_NAME, SITE_URL, SITE_TITLE, SITE_DESCRIPTION } from "./site";
 import { THEME_COLOR } from "./theme";
+
+/**
+ * Self-hosted Umami, proxied at /stats by Caddy so the tracker is first-party.
+ * Unset in local development and on any deploy without a website id, in which
+ * case no tag is emitted at all and `track()` in lib/analytics no-ops.
+ *
+ * Umami is cookieless by design — that is why it was chosen over Google
+ * Analytics. It is what lets /privacy keep saying there are no tracking cookies
+ * and no consent banner.
+ */
+const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
 // Self-hosted by next/font: no external request, no layout shift on load.
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-sans" });
@@ -101,6 +114,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {UMAMI_WEBSITE_ID && (
+          <Script
+            src="/stats/s.js"
+            data-website-id={UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
+        <Attribution />
         <Nav />
         <main>{children}</main>
         <footer className="border-t border-line bg-surface-subtle">
@@ -133,6 +154,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     { href: "/developers", label: "API reference" },
                     { href: "/docs", label: "Swagger UI" },
                     { href: "/api-docs", label: "OpenAPI document" },
+                    { href: "/blog", label: "Blog" },
                   ],
                 },
                 {

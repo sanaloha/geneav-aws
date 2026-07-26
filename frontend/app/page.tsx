@@ -87,6 +87,12 @@ const features = [
 // application.yml — that config is what actually meters and throttles.
 // There is no checkout yet, so every paid CTA opens an email rather than
 // implying self-serve upgrade. Swap to billing links once Stripe is wired up.
+
+// The free quota appears twice on this page: in the pricing card and under the
+// hero CTA. It is defined once here because those two drifted apart when the
+// tier was raised from 100 to 500 — the hero kept advertising the old number.
+const FREE_SCAN_QUOTA = 500;
+
 const plans = [
   {
     name: "Free",
@@ -94,7 +100,12 @@ const plans = [
     period: "/month",
     note: "No card required",
     cta: { label: "Create an API key", href: "/login", variant: "secondary" as const },
-    limits: ["500 scans per month", "10 requests per minute", "Full REST API access", "OpenAPI docs"],
+    limits: [
+      `${FREE_SCAN_QUOTA.toLocaleString("en-US")} scans per month`,
+      "10 requests per minute",
+      "Full REST API access",
+      "OpenAPI docs",
+    ],
   },
   {
     name: "Starter",
@@ -186,7 +197,8 @@ export default function Home() {
               </ButtonLink>
             </div>
             <p className="mt-4 text-[13px] text-ink-subtle">
-              Free tier — 100 scans a month, no card required.
+              Free tier — {FREE_SCAN_QUOTA.toLocaleString("en-US")} scans a month, no card
+              required.
             </p>
           </div>
 

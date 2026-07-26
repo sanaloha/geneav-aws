@@ -1,6 +1,7 @@
 package com.geneav.scan.account;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -63,6 +64,15 @@ public class Account {
      */
     @Column(name = "credentials_changed_at")
     private Instant credentialsChangedAt;
+
+    /**
+     * Which channel produced this signup, or null if it arrived untagged or
+     * predates attribution capture. Set once at signup and never revised — the
+     * question it answers is "what earned this account", not "where has this
+     * customer been since".
+     */
+    @Embedded
+    private SignupAttribution attribution;
 
     protected Account() {
         // for JPA
@@ -150,6 +160,14 @@ public class Account {
 
     public void setCredentialsChangedAt(Instant credentialsChangedAt) {
         this.credentialsChangedAt = credentialsChangedAt;
+    }
+
+    public SignupAttribution getAttribution() {
+        return attribution;
+    }
+
+    public void setAttribution(SignupAttribution attribution) {
+        this.attribution = attribution;
     }
 
     /**

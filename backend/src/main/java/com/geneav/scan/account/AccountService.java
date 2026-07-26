@@ -34,9 +34,15 @@ public class AccountService {
         this.passwordPolicy = passwordPolicy;
     }
 
-    /** Creates a password-backed account for the dashboard (no API key issued yet). */
+    /**
+     * Creates a password-backed account for the dashboard (no API key issued yet).
+     *
+     * <p>{@code attribution} records which channel produced the signup and may be
+     * null. It is stored on a best-effort basis and can never cause a failure —
+     * see {@link SignupAttribution}.
+     */
     @Transactional
-    public Account signupWithPassword(String rawEmail, String rawPassword) {
+    public Account signupWithPassword(String rawEmail, String rawPassword, SignupAttribution attribution) {
         String email = normalizeEmail(rawEmail);
         passwordPolicy.validate(rawPassword, email);
         if (accounts.existsByEmail(email)) {
@@ -45,6 +51,7 @@ public class AccountService {
         Account account = new Account(UUID.randomUUID(), email, plans.defaultPlanKey(), "active", Instant.now());
         account.setAuthProvider("password");
         account.setPasswordHash(passwordEncoder.encode(rawPassword));
+        account.setAttribution(attribution);
         return accounts.save(account);
     }
 

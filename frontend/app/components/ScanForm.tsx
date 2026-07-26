@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { AlertTriangle, CheckCircle2, Loader2, ShieldAlert, UploadCloud } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import { track } from "../lib/analytics";
 import Card from "../ui/Card";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
@@ -56,6 +57,10 @@ export default function ScanForm() {
       }
       const data: ScanResponse = await res.json();
       setState({ kind: "done", data });
+      // Only successful scans count — a visitor who saw an error did not get to
+      // try the product. The verdict is the useful dimension; the file is not
+      // described here and never leaves this call.
+      track("scan-run", { verdict: data.status });
     } catch {
       setState({
         kind: "error",
