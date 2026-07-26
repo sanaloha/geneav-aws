@@ -7,3 +7,40 @@ Dockerfile  text eol=lf
 *.yml       text eol=lf
 *.yaml      text eol=lf
 .env*       text eol=lf
+
+# ---------------------------------------------------------------------------
+# What ships to the production VM.
+#
+# scripts/deploy-vm.sh delivers a release by inlining `git archive HEAD` into an
+# Azure run-command payload, which has a hard size ceiling (~256 KB; the script
+# guards at 200 KB). Adding the blog tipped the repo over it, and the failure
+# mode is a refused deploy rather than a degraded one.
+#
+# `git archive` honours export-ignore, so listing a path here keeps it out of the
+# release tarball and changes nothing else. The rule is simply: if
+# `docker compose build` does not read it, the VM does not need it.
+#
+#   docs/       reference material, read on GitHub
+#   .github/    workflows run on the runner, never on the VM
+#   scripts/    deploy-vm.sh runs from the operator's machine or CI, not the VM
+#   *.md        READMEs and plans; nothing at runtime parses markdown
+#   geneav.sh / geneav.ps1            local docker-stack helpers
+#   geneav.postman_collection.json    published to users, not used by the stack
+#   .env.prod.example                 template; the real .env.prod lives on the VM
+#
+# NOTICE is deliberately NOT excluded: it carries the ClamAV/GPL attribution and
+# should travel with any deployed copy of the software.
+#
+# Effect: 182 KB -> 126 KB gzipped, 244 KB -> 168 KB base64-inlined. This buys
+# headroom, it does not remove the ceiling — when the archive nears 200 KB again
+# the answer is a container registry, as deploy-vm.sh already says.
+# ---------------------------------------------------------------------------
+docs/                           export-ignore
+.github/                        export-ignore
+scripts/                        export-ignore
+*.md                            export-ignore
+geneav.sh                       export-ignore
+geneav.ps1                      export-ignore
+geneav.postman_collection.json  export-ignore
+.env.prod.example               export-ignore
+.gitattributes                  export-ignore
