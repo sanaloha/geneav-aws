@@ -32,6 +32,10 @@ services:
         # NEXT_PUBLIC_API_BASE_URL is baked at BUILD time. Point it at the public
         # host so the browser calls https://<host>/api/... (same origin as the page).
         NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
+        # Also baked at build time, so changing it requires a rebuild, not just a
+        # restart. Empty until the site has been created in the Umami UI — see
+        # the two-pass note at the bottom of this file.
+        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
@@ -57,6 +61,65 @@ services:
     environment:
       # No dev fallback in prod: fail fast if the password is not set in .env.prod.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+
+  # Creates the `umami` database if it is missing, then exits.
+  #
+  # POSTGRES_DB cannot do this: it only runs on FIRST initialisation of the data
+  # volume, and that volume was initialised long ago with just `geneav`. The same
+  # applies to /docker-entrypoint-initdb.d, which is why this is a service rather
+  # than a mounted init script.
+  #
+  # Checks before creating so it is idempotent across deploys, and so a genuine
+  # failure (wrong password, postgres unreachable) still exits non-zero and stops
+  # umami from starting, instead of being swallowed by an "already exists" error.
+  umami-db-init:
+    image: postgres:16-alpine
+    container_name: geneav-umami-db-init
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+    entrypoint: ["sh", "-c"]
+    # A ONE-ELEMENT list on purpose. A bare string here gets word-split into
+    # separate argv entries, so `sh -c` would receive just "if" as its script.
+    command:
+      - >
+        if psql -h postgres -U ${POSTGRES_USER:-geneav} -d ${POSTGRES_DB:-geneav}
+        -tAc "SELECT 1 FROM pg_database WHERE datname='umami'" | grep -q 1;
+        then echo "umami database already present";
+        else createdb -h postgres -U ${POSTGRES_USER:-geneav} umami && echo "created umami database";
+        fi
+
+  # Cookieless, self-hosted analytics. Self-hosted specifically so that no visitor
+  # data leaves the box and the "no tracking cookies, no consent banner" claim on
+  # /privacy stays true — see docs/marketing-plan.md §3.1.
+  #
+  # Deliberately publishes NO host ports: Caddy reaches it over the compose
+  # network at umami:3000. (Adding ports here would also be pointless — see the
+  # note at the bottom about Compose merging port lists.)
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-v2
+    container_name: geneav-umami
+    restart: unless-stopped
+    mem_limit: 512m
+    depends_on:
+      umami-db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_TYPE: postgresql
+      DATABASE_URL: postgresql://${POSTGRES_USER:-geneav}:${POSTGRES_PASSWORD}@postgres:5432/umami
+      # Signs the Umami session token. Fail fast rather than booting with a
+      # default that would invalidate every login on the next restart.
+      APP_SECRET: ${UMAMI_APP_SECRET:?set UMAMI_APP_SECRET in .env.prod}
+      # Served under a path on the existing certificate rather than a subdomain,
+      # so there is no second DNS record and no second ACME challenge.
+      BASE_PATH: /stats
+      # The default tracker filename is on every ad-blocking filter list by name.
+      # A neutral name on a first-party path is what makes the numbers usable.
+      TRACKER_SCRIPT_NAME: s.js
+      DISABLE_TELEMETRY: "1"
 
 volumes:
   caddy-data:

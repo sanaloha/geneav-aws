@@ -42,7 +42,7 @@ class AccountServiceTest {
         when(accounts.existsByEmail("a@b.com")).thenReturn(false);
         when(accounts.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        service.signupWithPassword("A@B.com", "Sup3rsecret!pass");
+        service.signupWithPassword("A@B.com", "Sup3rsecret!pass", null);
 
         ArgumentCaptor<Account> saved = ArgumentCaptor.forClass(Account.class);
         verify(accounts).save(saved.capture());
@@ -72,8 +72,66 @@ class AccountServiceTest {
     }
 
     @Test
+    void signupPersistsAttribution() {
+        when(accounts.existsByEmail("a@b.com")).thenReturn(false);
+        when(accounts.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.signupWithPassword("a@b.com", "Sup3rsecret!pass",
+                SignupAttribution.of("reddit", "social", "selfhosted-cost", null, null,
+                        "https://reddit.com/r/selfhosted", "/blog/what-it-costs"));
+
+        SignupAttribution stored = savedAccount().getAttribution();
+        assertThat(stored).isNotNull();
+        assertThat(stored.getUtmSource()).isEqualTo("reddit");
+        assertThat(stored.getUtmMedium()).isEqualTo("social");
+        assertThat(stored.getUtmCampaign()).isEqualTo("selfhosted-cost");
+        assertThat(stored.getReferrer()).isEqualTo("https://reddit.com/r/selfhosted");
+        assertThat(stored.getLandingPath()).isEqualTo("/blog/what-it-costs");
+        // Absent tags stay absent rather than becoming empty strings.
+        assertThat(stored.getUtmTerm()).isNull();
+        assertThat(stored.getUtmContent()).isNull();
+    }
+
+    @Test
+    void signupWithoutAttributionStoresNone() {
+        when(accounts.existsByEmail("a@b.com")).thenReturn(false);
+        when(accounts.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.signupWithPassword("a@b.com", "Sup3rsecret!pass", null);
+
+        assertThat(savedAccount().getAttribution()).isNull();
+    }
+
+    /**
+     * The values come from the visitor's own URL, so oversized or blank input is
+     * expected. It must cost the tail of a string, never the signup.
+     */
+    @Test
+    void oversizedAttributionIsTruncatedRatherThanRejected() {
+        SignupAttribution a = SignupAttribution.of("s".repeat(5000), "  ", null, null, null,
+                "https://example.com/" + "p".repeat(5000), null);
+
+        assertThat(a).isNotNull();
+        assertThat(a.getUtmSource()).hasSize(128);
+        assertThat(a.getReferrer()).hasSize(512);
+        // Whitespace-only is indistinguishable from absent, so it is stored as absent.
+        assertThat(a.getUtmMedium()).isNull();
+    }
+
+    @Test
+    void attributionWithNothingUsableIsNull() {
+        assertThat(SignupAttribution.of(null, "   ", "", null, null, null, null)).isNull();
+    }
+
+    private Account savedAccount() {
+        ArgumentCaptor<Account> saved = ArgumentCaptor.forClass(Account.class);
+        verify(accounts).save(saved.capture());
+        return saved.getValue();
+    }
+
+    @Test
     void signupRejectsShortPassword() {
-        assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "short"))
+        assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "short", null))
                 .isInstanceOf(ScanException.class)
                 .extracting(e -> ((ScanException) e).getStatus())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -82,7 +140,7 @@ class AccountServiceTest {
     @Test
     void signupRejectsDuplicateEmail() {
         when(accounts.existsByEmail("a@b.com")).thenReturn(true);
-        assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "Sup3rsecret!pass"))
+        assertThatThrownBy(() -> service.signupWithPassword("a@b.com", "Sup3rsecret!pass", null))
                 .isInstanceOf(ScanException.class)
                 .extracting(e -> ((ScanException) e).getStatus())
                 .isEqualTo(HttpStatus.CONFLICT);

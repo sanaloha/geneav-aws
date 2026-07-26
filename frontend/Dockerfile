@@ -10,6 +10,10 @@ COPY . .
 # Passed from docker-compose.prod.yml; falls back to localhost when unset (local dev).
 ARG NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+# Umami website id. Unset is the normal state until the site has been created in
+# the Umami UI; the layout then renders no analytics tag at all.
+ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
+ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 RUN npm run build
 
 # --- run stage ---

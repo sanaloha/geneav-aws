@@ -34,6 +34,15 @@ www.geneav.com {
 		reverse_proxy backend:8080
 	}
 
+	# Self-hosted analytics. Umami runs with BASE_PATH=/stats, so it expects the
+	# prefix intact — handle, not handle_path. Serving it first-party here (rather
+	# than on a subdomain) reuses this certificate and keeps the tracker script on
+	# the same origin as the page, which is what gets it past blocklists.
+	@umami path /stats /stats/*
+	handle @umami {
+		reverse_proxy umami:3000
+	}
+
 	# Everything else → frontend (Next.js).
 	handle {
 		reverse_proxy frontend:3000

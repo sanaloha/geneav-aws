@@ -13,6 +13,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 const links = [
   { href: "/features", label: "Features" },
   { href: "/developers", label: "Developers" },
+  { href: "/blog", label: "Blog" },
   { href: "/about", label: "About" },
 ];
 
@@ -21,6 +22,13 @@ const linkClass = (active: boolean) =>
     "text-[15px] font-semibold no-underline transition-colors hover:no-underline",
     active ? "text-ink" : "text-ink-muted hover:text-ink"
   );
+
+/**
+ * Prefix match, so a blog post at /blog/some-slug still highlights "Blog".
+ * Exact match alone left the nav with nothing active on every post page.
+ */
+const isActive = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
 
 /**
  * Client component for the mobile menu and the session-dependent links. It was
@@ -91,7 +99,7 @@ export default function Nav() {
 
         <nav className="ml-auto hidden items-center gap-7 md:flex">
           {links.map(({ href, label }) => (
-            <Link key={href} href={href} className={linkClass(pathname === href)}>
+            <Link key={href} href={href} className={linkClass(isActive(pathname, href))}>
               {label}
             </Link>
           ))}

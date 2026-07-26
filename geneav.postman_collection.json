@@ -44,7 +44,7 @@
       "name": "Scan a document (API key, metered)",
       "request": {
         "method": "POST",
-        "description": "Same endpoint, authenticated with an API key so the scan counts against the account's monthly plan quota.\n\nUsage is recorded only after a scan succeeds — failed scans are not billed. Returns 402 once the quota is exhausted (free plan = 100 scans/month).",
+        "description": "Same endpoint, authenticated with an API key so the scan counts against the account's monthly plan quota.\n\nUsage is recorded only after a scan succeeds — failed scans are not billed. Returns 402 once the quota is exhausted (free plan = 500 scans/month).",
         "auth": {
           "type": "bearer",
           "bearer": [

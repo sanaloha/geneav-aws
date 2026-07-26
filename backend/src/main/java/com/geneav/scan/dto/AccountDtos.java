@@ -35,9 +35,22 @@ public final class AccountDtos {
     public record UsageResponse(String plan, String period, long scansUsed, long scansQuota, long scansRemaining) {
     }
 
+    /**
+     * Optional marketing attribution collected by the browser on the visitor's
+     * first page view. Carries no validation annotations on purpose: a malformed
+     * campaign tag must never turn into a rejected signup, so the service
+     * sanitises these instead of the framework refusing them.
+     */
+    public record AttributionPayload(String utmSource, String utmMedium, String utmCampaign,
+                                     String utmTerm, String utmContent,
+                                     String referrer, String landingPath) {
+    }
+
+    /** {@code attribution} is absent for a direct signup and may be omitted entirely. */
     public record SignupPasswordRequest(
             @NotBlank(message = "email is required") @Email(message = "a valid email is required") String email,
-            @NotBlank(message = "password is required") String password) {
+            @NotBlank(message = "password is required") String password,
+            AttributionPayload attribution) {
     }
 
     public record LoginRequest(

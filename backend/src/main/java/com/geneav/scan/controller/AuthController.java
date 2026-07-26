@@ -4,6 +4,8 @@ import com.geneav.scan.account.Account;
 import com.geneav.scan.account.AccountService;
 import com.geneav.scan.account.CurrentAccount;
 import com.geneav.scan.account.PasswordResetService;
+import com.geneav.scan.account.SignupAttribution;
+import com.geneav.scan.dto.AccountDtos.AttributionPayload;
 import com.geneav.scan.dto.AccountDtos.ForgotPasswordRequest;
 import com.geneav.scan.dto.AccountDtos.LoginRequest;
 import com.geneav.scan.dto.AccountDtos.MeResponse;
@@ -65,7 +67,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public MeResponse signup(@Valid @RequestBody SignupPasswordRequest req,
                              HttpServletRequest request, HttpServletResponse response) {
-        Account account = accounts.signupWithPassword(req.email(), req.password());
+        Account account = accounts.signupWithPassword(req.email(), req.password(), toAttribution(req.attribution()));
         establishSession(account, request, response);
         // Best-effort and asynchronous — a mail failure must not fail the signup.
         mail.sendSignupAcknowledgement(account.getEmail());
@@ -123,6 +125,19 @@ public class AuthController {
         Account account = currentAccount.resolve(request)
                 .orElseThrow(() -> new ScanException(HttpStatus.UNAUTHORIZED, "Not signed in."));
         return toMe(account);
+    }
+
+    /**
+     * Maps the optional attribution block off the request body. Null in means
+     * null out — a signup that carried no campaign tags is stored as having none
+     * rather than as a row of empty strings.
+     */
+    private SignupAttribution toAttribution(AttributionPayload p) {
+        if (p == null) {
+            return null;
+        }
+        return SignupAttribution.of(p.utmSource(), p.utmMedium(), p.utmCampaign(),
+                p.utmTerm(), p.utmContent(), p.referrer(), p.landingPath());
     }
 
     /** Establishes an authenticated session with the account id as the principal. */
