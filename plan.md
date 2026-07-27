@@ -67,20 +67,33 @@ clamav     ClamAV daemon (clamd)                 — the detection engine       
 - Wire `NEXT_PUBLIC_API_BASE_URL` and CORS origins to the deployed hosts.
 - Tick the "website is live" acceptance criterion.
 
-### 4. Post-v1 (out of scope for GN-1) — ⏳ Backlog
-- User accounts, authentication, and API keys.
-- Billing / subscription management.
-- Rate limiting and abuse protection.
-- Additional scan engines behind the `ScanEngine` abstraction.
+### 4. Post-v1 (out of scope for GN-1) — mostly shipped
+- ✅ User accounts, authentication, and API keys.
+- ✅ Rate limiting and abuse protection.
+- ✅ **Billing / subscription management — Microsoft Azure Marketplace** (27 July 2026).
+  Microsoft is merchant of record; a verified webhook sets `account.plan` and the existing
+  quota machinery enforces it. Ships **disabled**: with no credentials every marketplace
+  endpoint returns 503 and the site is unchanged. Includes Entra ID sign-in, which
+  Marketplace certification requires and which replaced the never-built Google login.
+  See [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
+- ⏳ Additional scan engines behind the `ScanEngine` abstraction.
+
+### 5. Publish the Marketplace offer — ⏳ In progress
+The code is done; the remaining work is account-level and cannot be automated:
+payout and tax profiles (verification-gated — the schedule risk), the two Entra app
+registrations, listing assets, then preview testing and certification. Runbook and
+risks in [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
 
 ## Current status
 
 | Item                                             | Status |
 |--------------------------------------------------|--------|
 | Frontend build + all routes serving              | ✅ Verified |
-| Backend build + tests                            | ✅ 5/5 passing |
-| Backend + ClamAV end-to-end (EICAR)              | 🔜 Pending Docker |
-| Website deployed / live                          | ⏳ Not started |
+| Backend build + tests                            | ✅ 145/145 passing |
+| Backend + ClamAV end-to-end (EICAR)              | ✅ Verified locally |
+| Website deployed / live                          | ✅ Live at geneav.com |
+| Marketplace billing (code)                       | ✅ Shipped, disabled until credentialed |
+| Marketplace offer published                      | ⏳ Partner Center work outstanding |
 
 ### Acceptance criteria (GN-1)
 - [x] Home page explains the product + CTA

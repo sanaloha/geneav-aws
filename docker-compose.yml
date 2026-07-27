@@ -81,6 +81,21 @@ services:
       # Global cap on simultaneous scans, protecting ClamAV's memory footprint.
       # Raising it without re-running the benchmark is guessing.
       GENEAV_RATELIMIT_SCAN_CONCURRENCY: ${GENEAV_RATELIMIT_SCAN_CONCURRENCY:-4}
+      # Microsoft Marketplace billing. Disabled by default: every
+      # /api/v1/marketplace endpoint returns 503 and nothing else changes.
+      GENEAV_MARKETPLACE_ENABLED: ${GENEAV_MARKETPLACE_ENABLED:-false}
+      MARKETPLACE_TENANT_ID: ${MARKETPLACE_TENANT_ID:-}
+      MARKETPLACE_CLIENT_ID: ${MARKETPLACE_CLIENT_ID:-}
+      MARKETPLACE_CLIENT_SECRET: ${MARKETPLACE_CLIENT_SECRET:-}
+      MARKETPLACE_PUBLISHER_ID: ${MARKETPLACE_PUBLISHER_ID:-}
+      MARKETPLACE_OFFER_ID: ${MARKETPLACE_OFFER_ID:-geneav-scan-api}
+      # Local-only escape hatch for scripts/replay-marketplace-webhook.sh, which
+      # replays events with a self-minted token. NEVER set this in production.
+      MARKETPLACE_RESOURCE_ID: ${MARKETPLACE_RESOURCE_ID:-20e940b3-4c77-4b0b-9a53-9e16a1b010a7}
+      # "Sign in with Microsoft" (Entra OIDC). Off by default: no OAuth2 routes.
+      GENEAV_MICROSOFT_LOGIN_ENABLED: ${GENEAV_MICROSOFT_LOGIN_ENABLED:-false}
+      MICROSOFT_LOGIN_CLIENT_ID: ${MICROSOFT_LOGIN_CLIENT_ID:-}
+      MICROSOFT_LOGIN_CLIENT_SECRET: ${MICROSOFT_LOGIN_CLIENT_SECRET:-}
     depends_on:
       clamav:
         condition: service_healthy
@@ -88,7 +103,13 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Baked into the client bundle at BUILD time, so flipping this needs a
+        # rebuild, not just a restart. Keep it in step with the backend's
+        # GENEAV_MICROSOFT_LOGIN_ENABLED.
+        NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED: ${NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED:-}
     container_name: geneav-frontend
     ports:
       - "3000:3000"

@@ -40,7 +40,7 @@ never happens.
 
 | # | Finding | Detail |
 |---|---|---|
-| 1 | **The unit economics work, but only once billing exists.** | Fixed cost is ~$73/month. Break-even is **8 Pro customers**. Beyond that, margin rises steeply because cost is fixed, not per-scan. But there is no checkout — Pro's CTA is a `mailto:` ([`frontend/app/page.tsx:99-102`](../frontend/app/page.tsx)). Revenue today is $0. |
+| 1 | ~~**The unit economics work, but only once billing exists.**~~ **Billing shipped 27 July 2026.** | Fixed cost is ~$73/month. Break-even was **8 Pro customers** at the $10 price this section was written against; at the shipped $39 it is **2**. Paid plans now sell through the **Microsoft Azure Marketplace** — the `mailto:` CTAs are gone. Microsoft is the merchant of record and takes a **3% service fee**, which moves break-even by a fraction of one customer. Revenue is still $0 until the Partner Center offer is published; see [`marketplace-plan.md`](marketplace-plan.md). |
 | 2 | **Pro is priced ~11x below the cheapest directly comparable competitor.** | $10 for 100,000 scans/month vs attachmentAV's €99 (≈$112) for the identical 100,000/month tier. Against ClamAV-based rivals the gap is ~198x. This is not aggressive pricing; it is an outlier that invites "what's the catch?" and leaves substantial revenue unclaimed. |
 | 3 | **Capacity per box is unmeasured.** | A global 4-concurrent-scan semaphore ([`application.yml:99`](../backend/src/main/resources/application.yml)) sits on a burstable B2ms VM. Nobody has benchmarked how many scans/month one box actually sustains. Signing a customer to a 100,000-scan entitlement without that number is an unpriced risk. |
 
@@ -211,6 +211,12 @@ and PostgreSQL ([`azure-provision.sh:10-35`](../azure-provision.sh),
 | OpenAI (chat widget) | `gpt-4o-mini`, usage-based, **optional** | **~$0–5** |
 | TLS, CI/CD, deploy identity | Let's Encrypt + GitHub Actions + Entra ID, all free tier | **$0.00** |
 | | **Total** | **≈ $73/month** |
+
+**Not in the table: the marketplace service fee.** Microsoft takes **3%** of each
+transaction as merchant of record. It is a variable cost on revenue rather than a
+fixed infrastructure cost, so it does not belong above — but it is the price of
+having tax, invoicing, and payout handled. At $39 Pro that is $1.17 per customer
+per month; break-even moves from 2 customers to 2.
 
 ⚠️ = approximate. Azure renders managed-disk prices dynamically and the P4 figure should be confirmed
 in the pricing calculator; the Hostinger mailbox cost was not independently verified. Together they
@@ -418,8 +424,12 @@ Grouped by what a buyer would ask about. Everything here is verifiable from the 
   regardless — but it must not be described to customers as file-type enforcement.
 
 ### Product gaps
-- **No billing.** No Stripe, no checkout. Pro is a `mailto:` link. Quota enforcement is real; the
-  payment rail is not.
+- ~~**No billing.** No Stripe, no checkout. Pro is a `mailto:` link.~~ **Fixed 27 July 2026.**
+  Paid plans sell through the Microsoft Azure Marketplace; a verified webhook sets `account.plan`
+  and the existing quota machinery enforces it ([`marketplace-plan.md`](marketplace-plan.md)).
+  Two caveats remain: the Partner Center offer is not yet published, so revenue is still $0; and
+  **a buyer without a Microsoft account cannot purchase at all**, which is a narrower funnel than
+  a card checkout would be.
 - **No scan history or audit trail.** No table exists — the only record of a scan is an application
   log line ([`ScanController.java:89,93`](../backend/src/main/java/com/geneav/scan/controller/ScanController.java)).
   Any compliance-driven buyer will ask for this, and the answer today is no.
@@ -427,7 +437,9 @@ Grouped by what a buyer would ask about. Everything here is verifiable from the 
   `/legal` covers licensing attribution only. Charging money without terms is not defensible.
 - **No organisations, teams or roles.** Multi-tenancy is per-account row scoping; the only authority
   granted is `ROLE_USER`. Blocks any team-sized deal.
-- **Google sign-in is a disabled placeholder.**
+- ~~**Google sign-in is a disabled placeholder.**~~ **Microsoft (Entra ID) sign-in shipped
+  27 July 2026** — required for Marketplace certification, and it doubles as federated login for
+  everyone. Google was never built; Microsoft covers the same need for this buyer.
 
 ### Operational
 - **Single VM, single region, no autoscaling, no failover.** One host is one outage.
@@ -469,7 +481,7 @@ sellable. In priority order, as candidate issues under epic GN-3:
 |---|---|---|
 | 1 | ~~Write a Terms of Service~~ — **done** | Shipped at `/terms`, alongside a `/security` page. Liability cap and indemnity still want a lawyer's review. |
 | 2 | ~~Reprice Pro~~ — **done at $39** | §5.5. Shipped with Starter/Scale tiers and a larger free allowance; see the update note at the top. |
-| 3 | Wire up Stripe checkout | Converts the existing quota machinery into revenue. Everything else is already built. |
+| 3 | ~~Wire up Stripe checkout~~ — **done via Azure Marketplace** | Converts the existing quota machinery into revenue. Code shipped and disabled; publishing the Partner Center offer (payout profile, listing, certification) is the remaining step. |
 | 4 | Benchmark sustained throughput | §5.6. Determines what a 100,000-scan entitlement actually commits to. |
 
 **Before the first serious customer**
@@ -485,6 +497,7 @@ sellable. In priority order, as candidate issues under epic GN-3:
 | # | Item | Why |
 |---|---|---|
 | 8 | Organisations / team accounts | Unblocks deals larger than one developer. |
+| 8a | **Make the offer Azure-benefit eligible** | An eligible Marketplace purchase draws down the customer's Microsoft Azure Consumption Commitment — a committed enterprise can buy geneav with budget it has already spent. No card checkout can offer this, and it is the strongest enterprise lever the product now has. |
 | 9 | Container registry for deploys | `deploy-vm.sh` inline delivery has a hard ceiling. |
 | 10 | Evaluate a second engine behind `ScanEngine` | The one change that would move geneav off "ClamAV with a nice API" — and justify pricing near the market. |
 
@@ -534,6 +547,9 @@ Base path `/api/v1`:
 | POST | `/auth/reset-password` | reset token |
 | POST | `/auth/logout` | session |
 | GET | `/auth/me` | session or key |
+| POST | `/marketplace/resolve` · `/activate` | session |
+| GET | `/marketplace/subscription` | session |
+| POST | `/marketplace/webhook` | Entra JWT (Microsoft) |
 
 Plus `/docs` (Swagger UI), `/api-docs` (OpenAPI JSON), and actuator `health,info`.
 

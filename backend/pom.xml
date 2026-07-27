@@ -48,10 +48,22 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Auth: password login + sessions (Google OAuth2 slots in later) -->
+        <!-- Auth: password login + sessions -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- "Sign in with Microsoft" (Entra ID OIDC); inert unless configured -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
+        <!-- JWT validation for the Microsoft Marketplace webhook (Nimbus decoder) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
 
         <!-- Transactional mail (signup acknowledgement); no-op unless SMTP is configured -->

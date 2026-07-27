@@ -93,6 +93,12 @@ Closes the last two open GN-1 acceptance criteria.
 - Add a **reverse proxy with automatic HTTPS** in front. **Caddy** is the least-effort
   choice: one `Caddyfile`, automatic Let's Encrypt certs + renewal, built-in per-IP rate
   limiting. It terminates TLS and proxies `/` → frontend, `/api` → backend.
+- **One exception to the per-IP rate limit** (added 27 July 2026): the Microsoft Marketplace
+  webhook must be declared in a `handle /api/v1/marketplace/webhook` block placed **ahead** of
+  the `/api/*` block, with no `rate_limit`. Microsoft retries delivery up to 500 times over eight
+  hours from a small set of source IPs, so the 20-events/minute limit would silently break
+  subscription lifecycle events. The backend validates an Entra JWT on every call — that, not
+  throttling, is the guard. The same exemption exists in `RateLimitFilter` and `ApiKeyAuthFilter`.
 - Add a **`docker-compose.prod.yml` override**: prod env vars, no public app ports,
   restart policies, resource limits, and the Caddy service.
 - Deploy:
@@ -108,7 +114,29 @@ Closes the last two open GN-1 acceptance criteria.
 - **Certs & signatures:** Caddy auto-renews TLS; freshclam auto-updates signatures inside
   the ClamAV container (persisted via the `clamav-db` volume).
 - **Monitoring:** Azure Monitor + an uptime check against `GET /api/v1/health`.
-- **Cost control:** Azure auto-shutdown schedule if this is a demo/dev box.
+  **Now a prerequisite, not a nice-to-have** — see the availability note below.
+- ~~**Cost control:** Azure auto-shutdown schedule if this is a demo/dev box.~~
+  **Incompatible with Marketplace billing.** Microsoft requires the landing page and the
+  webhook to be reachable **24/7**; a nightly deallocation window drops webhook deliveries and
+  leaves customers on a plan they are not paying for, or paying for one they do not have.
+  Auto-shutdown is a dev/demo lever only — do not enable it on the box serving the offer.
+
+### Availability became contractual (27 July 2026)
+
+Publishing a transactable Marketplace offer changes the operational bar. Previously a single
+VM with no failover was an accepted risk for a free product; a missed webhook now has a
+billing consequence. Two items move from "planned" to "required before the offer goes live":
+
+- **Uptime monitoring and alerting** on `/api/v1/health` and the webhook path
+  ([`docs/compliance-roadmap.md`](docs/compliance-roadmap.md) §6 item 7, still unconfigured).
+- **A deliberate answer on redundancy.** Deploys currently rebuild images on the production VM
+  itself, so there is a rebuild window with no failover
+  ([`docs/business-case.md`](docs/business-case.md) §5.6). Microsoft's webhook retries over
+  eight hours absorb a short window, but not an outage.
+
+The mitigating detail worth knowing: the expiry sweep (`SubscriptionExpiryJob`) is a safety net
+that repairs entitlements a dropped webhook would otherwise leave stale, so a brief outage
+degrades rather than corrupts. It is not a substitute for being up.
 
 ---
 

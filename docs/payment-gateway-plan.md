@@ -1,7 +1,34 @@
 # Payment gateway integration — provider choice and Razorpay plan
 
-**Status:** Draft v1
-**Date:** 26 July 2026
+> ## ⚠️ Superseded — 27 July 2026
+>
+> **Billing ships through the Microsoft Azure Marketplace, not Razorpay.** See
+> [`marketplace-plan.md`](marketplace-plan.md) for what was built.
+>
+> **Why the decision changed.** §1 below chose Razorpay largely because the
+> account was already KYC'd, while conceding that its "weakest corner" is
+> exactly geneav's shape: international customers, USD, auto-renewing, sold from
+> an Indian entity — and that EU/UK VAT and US sales tax would be "your problem".
+> Microsoft as **merchant of record** absorbs all of it: it collects payment,
+> applies tax in every jurisdiction, and pays out. The table in §1 already
+> scored a merchant of record as "the least total work"; Marketplace is that
+> option, and it arrives with a distribution channel attached.
+>
+> **What is still worth reading.** §4.1 and §4.2 are provider-agnostic and
+> transferred to the Marketplace implementation almost verbatim — take the raw
+> request body for signature checks, make retries free via a unique event id,
+> always return 2xx once stored, and exempt the webhook from both
+> `RateLimitFilter` and the Caddy per-IP limit. That last trap was real: it
+> would have silently broken subscription lifecycle events in production.
+>
+> **What did not survive.** §2's `V5__billing.sql` — V5 was taken by signup
+> attribution, so the marketplace schema is `V6__marketplace.sql`. The
+> `PaymentProvider` seam in §4 was not built either: with one rail there was
+> nothing to abstract over. It remains the right shape if a direct card rail is
+> ever added back (see `marketplace-plan.md` §5).
+
+**Status:** Superseded by [`marketplace-plan.md`](marketplace-plan.md)
+**Date:** 26 July 2026 · superseded 27 July 2026
 **Audience:** §1 is the commercial decision; §2 onward is the implementation design.
 **Relates to:** [`business-case.md`](business-case.md) finding #1 — "the unit economics work, but
 only once billing exists… revenue today is $0."

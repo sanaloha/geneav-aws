@@ -27,7 +27,9 @@ export type AnalyticsEvent =
   /** A free-tier account was created. */
   | "signup"
   /** The activation event: a signup went on to create an API key. */
-  | "api-key-created";
+  | "api-key-created"
+  /** An Azure Marketplace purchase was activated (billing started). */
+  | "marketplace-activated";
 
 export function track(event: AnalyticsEvent, data?: Record<string, unknown>): void {
   if (typeof window === "undefined") return;

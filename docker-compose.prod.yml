@@ -36,6 +36,10 @@ services:
         # restart. Empty until the site has been created in the Umami UI — see
         # the two-pass note at the bottom of this file.
         NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
+        # Renders the working "Continue with Microsoft" button. Must match the
+        # backend's GENEAV_MICROSOFT_LOGIN_ENABLED — if the frontend says enabled
+        # and the backend does not, the button leads to a route that is absent.
+        NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED: ${GENEAV_MICROSOFT_LOGIN_ENABLED:-}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
@@ -48,6 +52,8 @@ services:
       # Links in transactional email must point at the public host.
       GENEAV_MAIL_LOGIN_URL: https://${GENEAV_HOST}/login
       GENEAV_MAIL_RESET_URL: https://${GENEAV_HOST}/reset-password
+      # Where Microsoft sends the buyer back after "Sign in with Microsoft".
+      GENEAV_MICROSOFT_POST_LOGIN_URL: https://${GENEAV_HOST}/login
 
   clamav:
     restart: unless-stopped

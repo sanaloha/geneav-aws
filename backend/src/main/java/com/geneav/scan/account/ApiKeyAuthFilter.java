@@ -36,9 +36,21 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * The Marketplace webhook authenticates with a Microsoft Entra JWT in the
+     * {@code Authorization} header, which this filter would otherwise reject as
+     * an invalid API key. Its own controller validates that JWT.
+     */
+    private static final String MARKETPLACE_WEBHOOK_PATH = "/api/v1/marketplace/webhook";
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+
+        if (MARKETPLACE_WEBHOOK_PATH.equals(request.getRequestURI())) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header == null || header.isBlank()) {

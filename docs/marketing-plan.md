@@ -19,9 +19,13 @@ technology"* (§6), and [`compliance-roadmap.md`](compliance-roadmap.md) §5 put
 
 This plan addresses distribution, under three constraints fixed before it was written:
 
-1. **There is no checkout.** Every paid CTA is a `mailto:admin@geneav.com`
-   ([`page.tsx:99-134`](../frontend/app/page.tsx)). Phase 1 therefore optimises for **free-tier
-   signups and audience**, not MRR, and paid demand generation is held until billing ships.
+1. ~~**There is no checkout.**~~ **Checkout shipped 27 July 2026** — paid plans sell through the
+   **Microsoft Azure Marketplace**, and the `mailto:` CTAs are gone
+   ([`marketplace-plan.md`](marketplace-plan.md)). The constraint that shaped Phase 1 has
+   therefore lifted, with two qualifications: the Partner Center offer is not published yet, so
+   nothing can actually be bought today; and buyers need a Microsoft account, which narrows the
+   funnel relative to a card checkout. **Keep Phase 1's free-tier focus until the offer is live**,
+   then reopen paid demand generation — and see §2.4 for the channel the listing itself becomes.
 2. **~5 hours/week, near-zero spend.** No paid acquisition. Content, SEO, developer communities and
    directories — channels that compound rather than channels you rent.
 3. **Global developers, USD.** Matches current pricing, site copy, and the stated assumption in
@@ -88,6 +92,31 @@ security page, a DPA, and a fast, honest questionnaire response"* — not badges
 
 It is also the cheapest differentiator available, because competitors structurally cannot copy it
 without alarming their own enterprise pipeline.
+
+### 2.4 The Marketplace listing is a channel, not just a checkout
+
+Added 27 July 2026. The Azure Marketplace listing meets this plan's own test for what to
+invest in — a channel that **compounds** rather than one you rent (§1 constraint 2):
+
+- **It is a directory with intent.** People browsing Marketplace for a scanning API are further
+  down the funnel than a reader arriving from a blog post. The listing works while nothing is
+  being written.
+- **It removes procurement friction, which is a marketing problem.** "Bills to your existing
+  Azure invoice, no new vendor onboarding" answers an objection that has nothing to do with the
+  product and often kills small deals outright.
+- **Azure commitment drawdown is the strongest enterprise line the product has** — a committed
+  customer can buy geneav with budget already spent
+  ([`business-case.md`](business-case.md) §7 item 8a). Nothing in the content strategy competes
+  with that for a buyer who has a MACC.
+
+Two rules carry over unchanged. The house rule in §1 applies to the listing copy exactly as it
+does to a blog post — **no invented customers, no uptime figures**, and the ClamAV dependency
+stated openly. And per §2.1, the cost argument still anchors on **self-hosting**, not on
+undercutting competitors.
+
+One new caveat for all paid-channel copy: **buyers need a Microsoft account.** Do not run paid
+demand generation at audiences who cannot transact — the free tier remains the entry point for
+everyone else, and stays self-serve at geneav.com.
 
 ---
 

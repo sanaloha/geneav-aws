@@ -1,10 +1,12 @@
 package com.geneav.scan.account;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -30,16 +32,24 @@ import java.util.List;
  * <p>CSRF is disabled in favour of a {@code SameSite=Lax} session cookie (set in
  * application.yml): the cookie is not sent on cross-site state-changing requests,
  * which is what CSRF tokens would otherwise guard against for this JSON API.
- * Google OAuth2 login is added in a later slice (needs client credentials).
+ * "Sign in with Microsoft" (Entra ID) is wired only when a client registration
+ * exists — see {@link MicrosoftOidcConfig}; an unconfigured server has no
+ * OAuth2 routes at all.
  */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final String allowedOrigins;
+    private final ObjectProvider<ClientRegistrationRepository> clientRegistrations;
+    private final ObjectProvider<MicrosoftOidcHandler> microsoftHandler;
 
-    public SecurityConfig(@Value("${geneav.cors.allowed-origins:http://localhost:3000}") String allowedOrigins) {
+    public SecurityConfig(@Value("${geneav.cors.allowed-origins:http://localhost:3000}") String allowedOrigins,
+                          ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+                          ObjectProvider<MicrosoftOidcHandler> microsoftHandler) {
         this.allowedOrigins = allowedOrigins;
+        this.clientRegistrations = clientRegistrations;
+        this.microsoftHandler = microsoftHandler;
     }
 
     @Bean
@@ -55,6 +65,16 @@ public class SecurityConfig {
                 // Never redirect to a login page; unauthenticated access yields a clean 401.
                 .exceptionHandling(e -> e.authenticationEntryPoint(
                         (req, res, ex) -> res.sendError(HttpStatus.UNAUTHORIZED.value())));
+
+        // Microsoft sign-in, only when configured. The custom handlers replace
+        // Spring's OAuth2 security context with the dashboard's own session
+        // shape, so downstream code sees no difference from a password login.
+        MicrosoftOidcHandler handler = microsoftHandler.getIfAvailable();
+        if (clientRegistrations.getIfAvailable() != null && handler != null) {
+            http.oauth2Login(oauth -> oauth
+                    .successHandler(handler)
+                    .failureHandler(handler));
+        }
         return http.build();
     }
 

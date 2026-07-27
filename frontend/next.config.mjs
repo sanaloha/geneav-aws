@@ -13,6 +13,11 @@ const nextConfig = {
     // tag is rendered, which is what we want locally and on a fresh deploy
     // before the site has been created in Umami.
     NEXT_PUBLIC_UMAMI_WEBSITE_ID: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || "",
+    // "Sign in with Microsoft". Baked at BUILD time and must match the
+    // backend's GENEAV_MICROSOFT_LOGIN_ENABLED: "true" renders the working
+    // button, anything else renders it disabled ("soon"), because a click
+    // would land on a 404 if the backend has no OAuth2 routes.
+    NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED: process.env.NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED || "",
   },
 };
 
