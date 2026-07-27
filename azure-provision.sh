@@ -10,6 +10,12 @@ set -euo pipefail
 RG="${RG:-geneav-rg}"
 LOC="${LOC:-eastus}"
 VM="${VM:-geneav-vm}"
+# ⚠️ PRODUCTION DOES NOT MATCH THIS DEFAULT. geneav-vm is a Standard_D2s_v3
+# (2 vCPU / 8 GiB, fixed performance, $70.08/mo), not a B2ms (same specs but
+# burstable, $60.74/mo). Re-running this script would build a different, cheaper
+# machine than the one running today. Measured 27 July 2026; the discrepancy is
+# unexplained — prod was probably created by hand. Decide which you want before
+# relying on either: see docs/business-case.md §5.1.
 SIZE="${SIZE:-Standard_B2ms}"          # 2 vCPU / 8 GiB — needed for ClamAV's resident DB
 ADMIN="${ADMIN:-azureuser}"
 IMAGE="${IMAGE:-Ubuntu2204}"
