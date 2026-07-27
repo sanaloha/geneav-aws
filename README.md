@@ -326,10 +326,20 @@ The `deploy` job authenticates with **OIDC**, so no long-lived secret is stored
 in GitHub. Create an Entra app federated to this repo and grant it rights on the
 VM:
 
-The app already exists in this tenant as **`geneav-app`**, with the federated
-credential from step 2 in place. Step 3 is the outstanding one. Note that
-`az ad app list --show-mine` returns nothing if you are a guest user in the
-tenant — use `--all`, as below.
+**All three steps are already done in this tenant** (verified 27 July 2026):
+`geneav-app` exists with a service principal, its federated credential
+`geneav-main` trusts `repo:sanaloha/geneav-az:ref:refs/heads/main`, and it holds
+`Virtual Machine Contributor` scoped to `geneav-vm` alone. The steps below are
+kept as the record of how it was set up, and for rebuilding it elsewhere.
+
+Note that `az ad app list --show-mine` returns nothing if you are a guest user
+in the tenant — use `--all`, as below. To check the current state:
+
+```bash
+APP_ID=$(az ad app list --all --display-name geneav-app --query '[0].appId' -o tsv)
+az ad app federated-credential list --id "$APP_ID" --query "[].{name:name,subject:subject}" -o table
+az role assignment list --assignee "$APP_ID" --all --query "[].{role:roleDefinitionName,scope:scope}" -o table
+```
 
 ```bash
 # 1. app registration (already done: geneav-app)
@@ -353,11 +363,16 @@ az ad app federated-credential create --id "$APP_ID" --parameters '{
 }'
 
 # If the credential already exists with the wrong subject, UPDATE it — creating
-# a second one with the same name fails, and the stale record keeps rejecting:
+# a second one with the same name fails, and the stale record keeps rejecting.
+# Pass the WHOLE object: update replaces the record, so omitting issuer or
+# audiences blanks them.
 #   CRED=$(az ad app federated-credential list --id "$APP_ID" \
 #            --query "[?name=='geneav-main'].id" -o tsv)
 #   az ad app federated-credential update --id "$APP_ID" --federated-credential-id "$CRED" \
-#     --parameters '{"subject": "repo:sanaloha/geneav-az:ref:refs/heads/main"}'
+#     --parameters '{"name":"geneav-main",
+#                    "issuer":"https://token.actions.githubusercontent.com",
+#                    "subject":"repo:sanaloha/geneav-az:ref:refs/heads/main",
+#                    "audiences":["api://AzureADTokenExchange"]}'
 
 # 3. least privilege: run commands on the one VM, nothing else
 SUB=$(az account show --query id -o tsv)
