@@ -111,7 +111,7 @@ customer sending files to geneav is exporting personal data to the United States
 mechanism is required. The practical route is to annex **standard contractual clauses** to your DPA and
 document that Microsoft Azure is certified under the EU–US Data Privacy Framework. **⚖️ counsel.**
 
-Note the commercial angle: a **West Europe VM (~$73/month, the same as today's)** would let you offer EU
+Note the commercial angle: a **West Europe VM (~$87/month, the same as today's)** would let you offer EU
 data residency and sidestep the transfer question for EU customers entirely. That was already flagged as
 a market-access gap in [`business-case.md`](business-case.md) §5 — GDPR strengthens the case.
 

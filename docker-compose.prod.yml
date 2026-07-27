@@ -25,26 +25,28 @@ services:
       - frontend
       - backend
 
+  # Images are BUILT IN CI AND PULLED, never built here. The VM used to compile
+  # both apps on every deploy, which meant builds contended with live traffic and
+  # the whole source tree had to be shipped through `az vm run-command` — a path
+  # that hit Azure's script-size ceiling in July 2026 and could not be raised.
+  #
+  # The tag is the commit SHA, so a deploy is a pull of a known artifact and a
+  # rollback is re-pointing at the previous tag. `pull_policy: always` stops a
+  # stale local layer being preferred over what the registry now holds.
+  #
+  # NOTE: the base compose file still declares `build:` for local development.
+  # Compose merges the two, so the deploy script must use `up --no-build` to be
+  # certain the pulled image is what runs.
   frontend:
-    build:
-      context: ./frontend
-      args:
-        # NEXT_PUBLIC_API_BASE_URL is baked at BUILD time. Point it at the public
-        # host so the browser calls https://<host>/api/... (same origin as the page).
-        NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
-        # Also baked at build time, so changing it requires a rebuild, not just a
-        # restart. Empty until the site has been created in the Umami UI — see
-        # the two-pass note at the bottom of this file.
-        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
-        # Renders the working "Continue with Microsoft" button. Must match the
-        # backend's GENEAV_MICROSOFT_LOGIN_ENABLED — if the frontend says enabled
-        # and the backend does not, the button leads to a route that is absent.
-        NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED: ${GENEAV_MICROSOFT_LOGIN_ENABLED:-}
+    image: ${GENEAV_REGISTRY:-geneavacr.azurecr.io}/geneav-frontend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
+    pull_policy: always
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
 
   backend:
+    image: ${GENEAV_REGISTRY:-geneavacr.azurecr.io}/geneav-backend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
+    pull_policy: always
     restart: unless-stopped
     mem_limit: 1g
     environment:

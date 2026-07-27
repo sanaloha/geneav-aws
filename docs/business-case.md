@@ -32,7 +32,7 @@ itself. Any pitch that implies otherwise will not survive a technical evaluation
 own public copy already says so ([`frontend/app/page.tsx:116`](../frontend/app/page.tsx)).
 
 **The cost case in one line.** A team self-hosting ClamAV pays roughly the same infrastructure bill
-geneav pays (~$70/month) *plus* a one-time integration build and ongoing operational load; geneav's
+geneav pays (~$87/month) *plus* a one-time integration build and ongoing operational load; geneav's
 Pro tier is $10/month. The saving is not on infrastructure — it is on the engineering work that
 never happens.
 
@@ -40,9 +40,9 @@ never happens.
 
 | # | Finding | Detail |
 |---|---|---|
-| 1 | ~~**The unit economics work, but only once billing exists.**~~ **Billing shipped 27 July 2026.** | Fixed cost is ~$73/month. Break-even was **8 Pro customers** at the $10 price this section was written against; at the shipped $39 it is **2**. Paid plans now sell through the **Microsoft Azure Marketplace** — the `mailto:` CTAs are gone. Microsoft is the merchant of record and takes a **3% service fee**, which moves break-even by a fraction of one customer. Revenue is still $0 until the Partner Center offer is published; see [`marketplace-plan.md`](marketplace-plan.md). |
+| 1 | ~~**The unit economics work, but only once billing exists.**~~ **Billing shipped 27 July 2026.** | Fixed cost is **~$87/month** (corrected from $73 — see §5.1). Break-even was **8 Pro customers** at the $10 price this section was written against; at the shipped $39 it is **3**. Paid plans now sell through the **Microsoft Azure Marketplace** — the `mailto:` CTAs are gone. Microsoft is the merchant of record and takes a **3% service fee**, which does not move break-even. Revenue is still $0 until the Partner Center offer is published; see [`marketplace-plan.md`](marketplace-plan.md). |
 | 2 | **Pro is priced ~11x below the cheapest directly comparable competitor.** | $10 for 100,000 scans/month vs attachmentAV's €99 (≈$112) for the identical 100,000/month tier. Against ClamAV-based rivals the gap is ~198x. This is not aggressive pricing; it is an outlier that invites "what's the catch?" and leaves substantial revenue unclaimed. |
-| 3 | **Capacity per box is unmeasured.** | A global 4-concurrent-scan semaphore ([`application.yml:99`](../backend/src/main/resources/application.yml)) sits on a burstable B2ms VM. Nobody has benchmarked how many scans/month one box actually sustains. Signing a customer to a 100,000-scan entitlement without that number is an unpriced risk. |
+| 3 | **Capacity per box is unmeasured.** | A global 4-concurrent-scan semaphore ([`application.yml:99`](../backend/src/main/resources/application.yml)) sits on a 2-vCPU Standard_D2s_v3. Nobody has benchmarked how many scans/month one box actually sustains. Signing a customer to a 100,000-scan entitlement without that number is an unpriced risk. *(This row originally said "burstable B2ms" and cited burst-credit exhaustion — the VM is not burstable; see the retraction in §5.6. The finding stands, the stated cause did not.)* |
 
 **Recommendation.** Raise Pro to $29–$49/month — still 2–4x below the cheapest published competitor,
 break-even at 2–3 customers instead of 8 — and do not sell it until billing, a Terms of Service, and
@@ -202,15 +202,28 @@ and PostgreSQL ([`azure-provision.sh:10-35`](../azure-provision.sh),
 
 | Line item | Spec | Monthly |
 |---|---|---|
-| Azure VM | Standard_B2ms (2 vCPU / 8 GiB), East US, Linux PAYG — $0.0832/hr | **$60.74** |
+| Azure VM | Standard_D2s_v3 (2 vCPU / 8 GiB), East US, Linux PAYG — $0.0960/hr | **$70.08** |
 | Static public IP | Standard SKU — $0.005/hr | **$3.65** |
-| OS disk | 30 GB provisioned → Premium SSD P4 (32 GiB) | **~$5.00** ⚠️ |
+| OS disk | Premium SSD **P4** (32 GiB), LRS | **$5.28** |
+| Container registry | Azure Container Registry, **Basic** | **$5.00** |
 | Egress | Well under the 100 GB/month free allowance (§5.2) | **$0.00** |
 | Domain | geneav.com registration, amortised | **~$1.20** |
 | Transactional email | Hostinger mailbox, SMTP on 587 | **~$2.00** ⚠️ |
 | OpenAI (chat widget) | `gpt-4o-mini`, usage-based, **optional** | **~$0–5** |
 | TLS, CI/CD, deploy identity | Let's Encrypt + GitHub Actions + Entra ID, all free tier | **$0.00** |
-| | **Total** | **≈ $73/month** |
+| | **Total** | **≈ $87/month** |
+
+> **Corrected 27 July 2026.** This table previously said **$73/month** and named
+> the VM as a **Standard_B2ms**. The VM is actually a **Standard_D2s_v3** — same
+> 2 vCPU / 8 GiB, but a fixed-performance SKU rather than a burstable one, and
+> $9.34/month dearer. Adding the container registry (new, see §8.1) and the
+> measured disk price brings the real figure to **≈$87**, about 19% above what
+> this section claimed. VM, disk and registry prices were taken from the Azure
+> Retail Prices API for `eastus` on 27 July 2026 rather than from a third-party
+> table; the domain and mailbox lines are still estimates.
+>
+> The SKU error was not only a pricing error — see the burstable-VM correction
+> in §5.6, which invalidated a risk this document raised.
 
 **Not in the table: the marketplace service fee.** Microsoft takes **3%** of each
 transaction as merchant of record. It is a variable cost on revenue rather than a
@@ -227,15 +240,26 @@ Notes:
   resident, and this was previously stated here as ~1.5–2 GB. **Measured 26 July 2026 it is
   974 MB resident, peaking at 987 MB** — about half the figure this section was built on. The
   whole stack (ClamAV, backend, frontend, Postgres, Caddy, Umami) uses **~2.0 GB of 7.8 GB**.
-  B2s (4 GiB) now looks like a comfortable fit rather than a floor, and the VM line is the
+  A 4 GiB SKU now looks like a comfortable fit rather than a floor, and the VM line is the
   largest single cost in the table above. See the sizing note in §5.6.
+
+  **This is now the clearest cost lever available**, and a larger one than when it was written,
+  because the VM is a D2s_v3 at $70.08 rather than a B2ms at $60.74. Two caveats before acting:
+  the VM no longer builds images (CI does), so peak CPU demand has dropped and a smaller SKU is
+  more plausible than it was — but capacity under concurrent load is still unmeasured (§5.6), and
+  the 24/7 requirement above means there is no longer a deallocation schedule to fall back on if
+  a downsize proves too tight. Benchmark first.
 - **OpenAI is not a fixed cost.** With no API key the chat endpoint returns 503 and the rest of the
   product is unaffected ([`ChatService.java:108-111`](../backend/src/main/java/com/geneav/scan/service/ChatService.java)).
   It is a marketing/support feature, entirely outside the scan path.
-- **A nightly deallocation schedule appears to be configured in the Azure portal** (referenced at
-  [`docs/db-access.md:28`](db-access.md)) but is absent from `azure-provision.sh`. It is a real
-  compute-cost lever — roughly a third off the VM line — but it is a dev/demo lever, not something
-  compatible with a paying customer's uptime expectations. The $73 figure assumes 24/7 operation.
+- ~~**A nightly deallocation schedule appears to be configured in the Azure portal**~~
+  **Disabled 27 July 2026.** The schedule (`shutdown-computevm-geneav-vm`) still exists as a
+  resource but its status is `Disabled`, so the VM now runs 24/7 and the $87 figure is the real
+  monthly cost rather than an upper bound. It was turned off deliberately: a Marketplace offer
+  requires the landing page and webhook to be reachable at all times, and a deallocated VM drops
+  webhook deliveries — a customer would be billed for a plan the API had not granted. The
+  roughly-a-third saving on the VM line is no longer available, and should not be reclaimed while
+  the offer is live.
 
 ### 5.2 Cost per scan
 
@@ -245,11 +269,11 @@ pure function of utilisation.
 
 | Scans/month | Cost per 1,000 scans |
 |---|---|
-| 1,000 | $73.00 |
-| 10,000 | $7.30 |
-| 100,000 | **$0.73** |
-| 500,000 | $0.15 |
-| 1,000,000 | $0.07 |
+| 1,000 | $87.00 |
+| 10,000 | $8.70 |
+| 100,000 | **$0.87** |
+| 500,000 | $0.17 |
+| 1,000,000 | $0.09 |
 
 Egress is negligible by construction: scanning is an *upload* (inbound, free on Azure), and the
 response is a few hundred bytes of JSON. Only the marketing site generates meaningful outbound
@@ -262,7 +286,7 @@ Normalised to **cost per 1,000 scans** at each vendor's most favourable publishe
 | Vendor | Plan | Price/month | Scans/month | $/1,000 scans | Engine |
 |---|---|---|---|---|---|
 | **geneav** | **Pro** | **$10** | **100,000** | **$0.10** | ClamAV |
-| geneav | *(cost basis at 100k)* | $73 | 100,000 | $0.73 | ClamAV |
+| geneav | *(cost basis at 100k)* | $87 | 100,000 | $0.87 | ClamAV |
 | attachmentAV | Large | €99 (≈$112.56) | 100,000 | $1.13 | Sophos |
 | attachmentAV | XXL | €499 (≈$567.36) | 500,000 | $1.13 | Sophos |
 | Cloudmersive | Business Advantage | $199.99 | 100,000 | $2.00 | Multi-engine |
@@ -294,7 +318,7 @@ This is where the argument is genuinely compelling, because it is not about infr
 
 | | Self-host ClamAV | geneav Pro |
 |---|---|---|
-| Infrastructure | ~$70/month (the same class of VM) | included |
+| Infrastructure | ~$87/month (the same class of VM) | included |
 | Integration build | HTTP wrapper, auth, API keys, quotas, rate limiting, TLS, CI/CD | shipped |
 | One-time engineering | 2–4 weeks senior engineer ≈ **$6,000–$24,000** † | $0 |
 | Ongoing operations | freshclam, OOM tuning, cert renewal, patching ≈ 2–4 h/month ≈ **$150–$600/month** † | $0 |
@@ -316,10 +340,18 @@ That reading is wrong, because cost is fixed rather than per-scan. The correct m
 
 | Pro customers | Revenue | Cost | Gross margin |
 |---|---|---|---|
-| 8 | $80 | $73 | 9% (break-even) |
-| 20 | $200 | $73 | 64% |
-| 50 | $500 | $73 | 85% |
-| 100 | $1,000 | $73 | 93% |
+| 8 | $80 | $87 | −9% (below break-even) |
+| 20 | $200 | $87 | 56% |
+| 50 | $500 | $87 | 83% |
+| 100 | $1,000 | $87 | 91% |
+
+> **Corrected 27 July 2026** for the $87 cost basis (§5.1). At the $10 price this
+> table was built on, 8 customers no longer break even — it takes **9**. The
+> point the table makes is unchanged and if anything sharpened: $10 was too
+> cheap, and margin still climbs steeply once fixed cost is covered. At the
+> **shipped $39 price, break-even is 3 customers**, not the 2 stated elsewhere
+> in this document: 2 × $39 = $78, which is short of $87. Microsoft's 3%
+> marketplace fee does not move it — 3 × ($39 × 0.97) = $113.49, still clear.
 
 **Break-even is 8 paying Pro customers**, and margin climbs steeply after that because an additional
 customer costs nothing until capacity runs out. The model is sound.
@@ -362,9 +394,22 @@ scan latency *L*:
 | 1.0 s | 4 | ~10M |
 | 3.0 s | 1.33 | ~3.5M |
 
-These are ceilings on the semaphore alone. **The B2ms is a burstable SKU**: sustained CPU above its
+These are ceilings on the semaphore alone. ~~**The B2ms is a burstable SKU**: sustained CPU above its
 baseline drains burst credits, after which the VM is throttled. In practice CPU credits, not the
-semaphore, are likely the binding constraint.
+semaphore, are likely the binding constraint.~~
+
+> **Retracted 27 July 2026 — the VM is not burstable.** It is a
+> **Standard_D2s_v3**, a fixed-performance general-purpose SKU, not a B2ms.
+> There are no burst credits to drain and no post-burst throttling, so the
+> constraint this paragraph named **does not exist**. Sustained CPU is simply
+> sustained CPU at 2 vCPU.
+>
+> This was the more consequential half of the SKU error: §5.1 was merely
+> under-costed, but this raised a capacity risk that was never real and shaped
+> the "capacity per box is unmeasured" finding in §1. That finding still stands
+> — throughput under concurrent load is genuinely unmeasured — but the *reason*
+> given for it was wrong. The saturation question is now plain CPU contention on
+> 2 vCPU, which is easier to reason about and easier to benchmark.
 
 #### Measured, 26 July 2026
 
@@ -387,7 +432,8 @@ binding at these latencies, and neither is anything else at current volumes.
 
 **What is still not measured.** These are sequential, single-client samples. They establish per-scan
 cost, not saturation behaviour. Four concurrent scans on 2 vCPU will contend, so real throughput
-under load will be below 4 × the single-stream rate, and the burst-credit question is untouched.
+under load will be below 4 × the single-stream rate. (The original text added "and the burst-credit
+question is untouched" — there is no burst-credit question; see the retraction above.)
 [`scripts/benchmark-scan.sh`](../scripts/benchmark-scan.sh) exists to answer that; running it
 properly requires temporarily disabling the per-IP token bucket
 (`GENEAV_RATELIMIT_ENABLED=false`), which needs a backend restart and so has not been done against
@@ -523,7 +569,8 @@ sellable. In priority order, as candidate issues under epic GN-3:
 | Database | PostgreSQL 16-alpine, Flyway migrations V1–V4, Hibernate `ddl-auto: validate` |
 | Engine | `clamav/clamav:1.4`, healthcheck with 120 s start period |
 | Proxy | Caddy 2 (custom build with `caddy-ratelimit`), automatic Let's Encrypt |
-| Host | Single Azure VM `geneav-vm` / `GENEAV-RG`, Standard_B2ms, East US |
+| Host | Single Azure VM `geneav-vm` / `GENEAV-RG`, **Standard_D2s_v3**, East US |
+| Registry | Azure Container Registry `geneavacr` (Basic) — CI builds and pushes SHA-tagged images; the VM pulls with a pull-only scoped token |
 | CI/CD | GitHub Actions — `mvn test` + `next build`, deploy on push to `main` via Azure OIDC and `az vm run-command` (no inbound SSH), with automatic rollback |
 
 ### 8.2 API surface
@@ -589,7 +636,8 @@ downloaded at runtime by freshclam and are not redistributed.
 
 Pricing retrieved 24–25 July 2026:
 
-- [Standard_B2ms specs and pricing — CloudPrice](https://cloudprice.net/vm/Standard_B2ms) — $0.0832/hr, $60.74/month, East US Linux PAYG (page updated 22 July 2026)
+- ~~[Standard_B2ms specs and pricing — CloudPrice](https://cloudprice.net/vm/Standard_B2ms)~~ — wrong SKU; the VM is a D2s_v3. Superseded by the source below.
+- **Azure Retail Prices API** (`https://prices.azure.com/api/retail/prices`), queried 27 July 2026 for `armRegionName eq 'eastus'` — Standard_D2s_v3 Linux $0.0960/hr ($70.08/mo at 730 h), Premium SSD P4 LRS $5.28/mo, Container Registry Basic $0.1666/day ($5.00/mo). First-party pricing rather than a third-party table.
 - [Pricing — Virtual Machine IP Address Options, Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/ip-addresses/) — Standard static public IP $0.005/hr
 - [Pricing — Managed Disks, Microsoft Azure](https://azure.microsoft.com/en-us/pricing/details/managed-disks/) — Premium SSD P4 tier (price rendered dynamically; confirm in the Azure calculator)
 - [Azure Bandwidth & Egress Pricing Explained (2026) — EgressCost](https://egresscost.com/azure/) — 100 GB/month free egress allowance; $0.087/GB thereafter in Zone 1

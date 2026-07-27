@@ -303,22 +303,61 @@ Pushing to `main` deploys automatically once CI passes.
 
 Deploys go through the **Azure control plane** (`az vm run-command`), not SSH.
 The VM's NSG only allows port 22 from a couple of fixed addresses, so a
-GitHub-hosted runner (dynamic egress IP) could never reach it — and the VM holds
-no credentials for this private repo, so it cannot `git pull` either. Instead
-`scripts/deploy-vm.sh` packages the commit with `git archive` and hands it to
-the VM, which unpacks it and rebuilds.
+GitHub-hosted runner (dynamic egress IP) could never reach it.
+
+**Images are built in CI and pulled from Azure Container Registry** — the VM
+compiles nothing. CI builds `geneav-backend` and `geneav-frontend` tagged with
+the commit SHA, pushes them to `geneavacr.azurecr.io`, and `scripts/deploy-vm.sh`
+tells the VM to pull that tag and restart.
+
+> Until July 2026 the deploy base64'd the whole source tree into the
+> run-command script and the VM rebuilt both images. That ended when the payload
+> hit ~199 KB: Azure returned `Enable succeeded` with empty output and silently
+> did nothing. The effective limit is well below the documented 256 KB, and
+> trimming could not help because the payload was application source. Building
+> in CI also stops deploys competing with live traffic for CPU.
+
+**Credentials are split by direction.** CI holds a push-scoped ACR token; the VM
+holds a **pull-only** one in `.env.prod`, so a compromise of the box cannot push
+a poisoned image. Neither is the registry admin credential, and both are
+revocable independently.
 
 ### Deploy manually
 
 ```bash
 az login
-scripts/deploy-vm.sh              # deploy the current commit
+scripts/deploy-vm.sh              # deploy the current commit (must be pushed to ACR)
 scripts/deploy-vm.sh --dry-run    # print the remote script, change nothing
+scripts/deploy-vm.sh <sha>        # deploy/roll back to a specific tag
 ```
 
-The script keeps the previous tree at `/home/azureuser/geneav-old-<timestamp>`,
-rolls back automatically if the build fails, and carries the VM's gitignored
-`.env.prod` across untouched.
+The script pulls the SHA-tagged images, restarts, waits for
+`GET /api/v1/health`, and **rolls back to the previously deployed SHA** if the
+pull, the start, or the health check fails. The VM's gitignored `.env.prod` is
+never touched.
+
+To roll back by hand, deploy the previous SHA — the images are still in the
+registry:
+
+```bash
+scripts/deploy-vm.sh <previous-sha>
+```
+
+### One-time registry setup
+
+```bash
+az acr create -g GENEAV-RG -n geneavacr --sku Basic --admin-enabled false
+
+# Pull-only token for the VM -> .env.prod as ACR_TOKEN_USER / ACR_TOKEN_PASSWORD
+az acr token create -r geneavacr -n geneav-vm-pull \
+  --repository geneav-backend content/read \
+  --repository geneav-frontend content/read
+
+# Push token for CI -> repo secret ACR_TOKEN_PASSWORD
+az acr token create -r geneavacr -n geneav-ci-push \
+  --repository geneav-backend content/write content/read \
+  --repository geneav-frontend content/write content/read
+```
 
 ### One-time CI setup
 
@@ -388,6 +427,20 @@ Then add these under **Settings → Secrets and variables → Actions**:
 | `AZURE_CLIENT_ID` | `$APP_ID` from step 1 |
 | `AZURE_TENANT_ID` | `az account show --query tenantId -o tsv` |
 | `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv` |
+| `ACR_TOKEN_PASSWORD` | password from the `geneav-ci-push` token |
+
+| Variable | Value | Why a variable, not a secret |
+|---|---|---|
+| `ACR_REGISTRY` | `geneavacr.azurecr.io` | Not sensitive |
+| `ACR_TOKEN_USER` | `geneav-ci-push` | Not sensitive |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://geneav.com` | Baked into the browser bundle |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | the Umami site id | Baked into the browser bundle |
+| `NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED` | `true` once Entra login is live | Baked into the browser bundle |
+
+> The `NEXT_PUBLIC_*` values used to live in `.env.prod` on the VM. They are
+> inlined when the **image** is built, so now that CI builds the images they
+> must be set here — setting them on the VM has no effect. None are secrets;
+> they are served to every visitor.
 
 The old `SSH_HOST` / `SSH_USER` / `SSH_KEY` secrets are no longer used and can
 be deleted.

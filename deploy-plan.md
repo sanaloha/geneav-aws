@@ -79,6 +79,12 @@ Closes the last two open GN-1 acceptance criteria.
 
 - **VM:** Ubuntu 22.04 LTS, **Standard B2ms (2 vCPU / 8 GiB)** recommended. B2s
   (2 vCPU / 4 GiB) is the bare floor given `clamd`'s memory footprint.
+  > **What was actually built is a Standard_D2s_v3** — same 2 vCPU / 8 GiB, but
+  > fixed-performance rather than burstable, and ~$9/month dearer. Measured
+  > 27 July 2026. The recommendation above was never applied; `azure-provision.sh`
+  > still defaults to B2ms, so it and production disagree. Since measured usage
+  > is ~2.0 GB of 7.8 GB, the open question is not B2ms vs D2s_v3 but whether
+  > either needs 8 GiB at all — see [`docs/business-case.md`](docs/business-case.md) §5.1.
 - **Networking (NSG):** allow **443** (and **80** for the ACME HTTP-01 challenge/redirect)
   from the internet; restrict **SSH (22)** to your IP or use Azure Bastion.
 - **Public IP:** static — the `nip.io` hostname is derived from it, so it must not change

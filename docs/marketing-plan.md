@@ -276,7 +276,7 @@ Stating these stops 5 hrs/week being spread across twelve channels at zero depth
   [`business-case.md`](business-case.md) §6 says this *"blocks any team-sized deal."* Selling into it
   wastes the meeting.
 - **No EU-targeted campaigns yet.** Single region (Azure East US), no DPA. A West Europe VM
-  (~$73/month) unlocks this cheaply and is the highest-leverage market expansion available — but it
+  (~$87/month) unlocks this cheaply and is the highest-leverage market expansion available — but it
   is a prerequisite, not a campaign.
 - **No social-media presence building.** Low return per hour relative to content that ranks.
 - **No testimonials, logos or user counts.** There are none. Fabricating them destroys the one asset
