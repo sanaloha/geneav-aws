@@ -254,8 +254,11 @@ export default function WhatItCostsToSelfHostClamAv() {
       <P>
         The headline is that <Strong>infrastructure is almost never the expensive part</Strong>. At
         the low end it is under a third of the monthly cost and under a tenth of year one. If you
-        budgeted for a $70 VM and called that the cost of self-hosting, you were off by somewhere
-        between 3x and 460x, depending on how you count.
+        budgeted for a $70 VM and called that the cost of self-hosting, you were off by{" "}
+        <Strong>3&ndash;10x</Strong> comparing month to month, or <Strong>10&ndash;38x</Strong>{" "}
+        across year one. Both are true; they measure different things. Divide a year-one total by a
+        monthly bill and you can manufacture a much larger number, which is exactly why you should
+        distrust one when you see it.
       </P>
 
       <H2>When self-hosting is the right answer anyway</H2>
