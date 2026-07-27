@@ -4,8 +4,8 @@ Project plan for **geneav**, a document-scanning antivirus product: a marketing
 website plus a REST API that scans uploaded documents for malware using ClamAV.
 
 > Tracked in Jira: **[GN-1](https://santoshsscet.atlassian.net/browse/GN-1)** ·
-> Scaffold PR: **[#1](https://github.com/sanaloha/geneav/pull/1)** ·
-> This document: **[#2](https://github.com/sanaloha/geneav/issues/2)**
+> Scaffold PR: **[#1](https://github.com/sanaloha/geneav-az/pull/1)** ·
+> This document: **[#2](https://github.com/sanaloha/geneav-az/issues/2)**
 
 ## Overview
 
