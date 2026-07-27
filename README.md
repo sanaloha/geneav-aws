@@ -277,13 +277,18 @@ The `deploy` job authenticates with **OIDC**, so no long-lived secret is stored
 in GitHub. Create an Entra app federated to this repo and grant it rights on the
 VM:
 
-```bash
-# 1. app registration
-az ad app create --display-name geneav-deploy
-APP_ID=$(az ad app list --display-name geneav-deploy --query '[0].appId' -o tsv)
-az ad sp create --id "$APP_ID"
+The app already exists in this tenant as **`geneav-app`**, with the federated
+credential from step 2 in place. Step 3 is the outstanding one. Note that
+`az ad app list --show-mine` returns nothing if you are a guest user in the
+tenant — use `--all`, as below.
 
-# 2. trust GitHub Actions on main (no secret involved)
+```bash
+# 1. app registration (already done: geneav-app)
+az ad app create --display-name geneav-app          # skip if it exists
+APP_ID=$(az ad app list --all --display-name geneav-app --query '[0].appId' -o tsv)
+az ad sp create --id "$APP_ID"                      # errors harmlessly if present
+
+# 2. trust GitHub Actions on main (no secret involved; already created as geneav-main)
 az ad app federated-credential create --id "$APP_ID" --parameters '{
   "name": "geneav-main",
   "issuer": "https://token.actions.githubusercontent.com",
