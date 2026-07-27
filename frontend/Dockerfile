@@ -14,6 +14,11 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 # the Umami UI; the layout then renders no analytics tag at all.
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
+# "Sign in with Microsoft". Must match the backend's GENEAV_MICROSOFT_LOGIN_ENABLED:
+# anything other than "true" renders the button disabled, because a click would
+# otherwise land on an OAuth2 route the backend has not registered.
+ARG NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED
+ENV NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED=$NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED
 RUN npm run build
 
 # --- run stage ---

@@ -16,6 +16,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // The blog is the acquisition channel, so the index tracks the posts it
     // lists and is crawled at the same cadence as the landing page.
     { path: "/blog", priority: 0.7, changeFrequency: "weekly" },
+    // The purchase channel; /marketplace/landing is deliberately absent (noindex).
+    { path: "/marketplace", priority: 0.7, changeFrequency: "monthly" },
     { path: "/terms", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal", priority: 0.3, changeFrequency: "monthly" },
     { path: "/privacy", priority: 0.3, changeFrequency: "monthly" },

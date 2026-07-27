@@ -126,6 +126,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 // Polled on every dashboard page load; throttling it would break
                 // the UI long before it deterred anyone.
                 || path.equals("/api/v1/auth/me")
+                // Microsoft retries webhook delivery up to 500 times over eight
+                // hours from a small set of IPs; its Entra JWT — validated in
+                // the webhook controller — is the guard, not throttling.
+                || path.equals("/api/v1/marketplace/webhook")
                 || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 

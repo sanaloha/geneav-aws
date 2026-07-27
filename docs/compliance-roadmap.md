@@ -59,6 +59,16 @@ geneav is **both**, and the distinction drives every obligation below:
 | Account email, password hash, plan, usage counters | **Controller** | Contract (Art. 6(1)(b)) |
 | Server logs, rate-limit and abuse records | **Controller** | Legitimate interests (Art. 6(1)(f)) |
 | Files submitted for scanning | **Processor** — the customer is the controller | Customer's own basis |
+| Marketplace subscription + Entra sign-in identity | **Controller** | Contract (Art. 6(1)(b)) |
+
+**Marketplace billing does not change geneav's role for scanned content.** Added 27 July 2026:
+Microsoft is merchant of record for the *transaction* only — it takes payment details, applies
+tax, and pays out, so geneav never sees a card number. For everything this table already covered,
+including the files customers submit, geneav remains exactly what it was. **The Article 28 DPA
+obligation is therefore unchanged** — do not let "Microsoft handles billing" be mistaken for
+"Microsoft handles our GDPR position". What is genuinely new is a small amount of additional
+controller data: subscription id, plan, purchaser and beneficiary email, and Entra tenant id
+(`V6__marketplace.sql`), plus name and email from Entra when a user signs in with Microsoft.
 
 Being a processor for the scanned content is what makes a DPA mandatory: Article 28 requires a written
 contract between controller and processor. You cannot lawfully serve a business EU customer without one.
@@ -116,6 +126,8 @@ a market-access gap in [`business-case.md`](business-case.md) §5 — GDPR stren
 | 5 | **Retention schedule** | Accounts, logs, usage counters, backups. Currently undefined for logs |
 | 6 | **DPIA screening note** | Short written justification for why a full DPIA is not required |
 | 7 | **Data subject rights procedure** | Access, rectification, erasure, portability — who does what, within what window |
+| 8 | **Add Microsoft to the subprocessor list** — ✅ done | Marketplace (billing) and Entra ID (sign-in) are published on [`/security`](../frontend/app/security/page.tsx) and `/privacy`. Note for questionnaires: Microsoft is merchant of record for the transaction, **not** a processor of scanned files |
+| 9 | **Erasure now spans a second system** | Art. 17 deletion must consider the marketplace subscription too. Cancelling in Azure is the *customer's* action and does not delete their geneav account; deleting the geneav account cascades `marketplace_subscription` but does not cancel their Microsoft billing. Say which is which in the rights procedure, or a user who asks for erasure keeps getting invoiced. **⚖️ counsel** |
 
 ### 3.5 Cost and timeline
 

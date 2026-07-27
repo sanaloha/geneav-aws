@@ -147,11 +147,18 @@ export default function Terms() {
             scans count against your quota; failed requests do not.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-            Paid plans are billed monthly in advance and, unless stated otherwise, are{" "}
-            <strong>non-refundable</strong> except where required by law. You may cancel at any time
-            and will retain access until the end of the paid period. We may change pricing with at
-            least 30 days&apos; notice; changes take effect at your next renewal. Free-tier access is
-            provided at our discretion and may be modified or withdrawn.
+            Paid plans are purchased through the <strong>Microsoft Azure Marketplace</strong>.
+            Microsoft is the merchant of record: it collects payment, applies any taxes, and bills
+            your Azure account monthly in advance under the Microsoft Customer Agreement.
+            Cancellation and any refunds run through Microsoft&apos;s marketplace terms — cancel
+            from the Azure portal at any time and you retain access until the end of the paid
+            period. Where a plan offers a free trial, no charge is made if you cancel before the
+            trial ends.
+          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
+            We may change pricing with at least 30 days&apos; notice; changes take effect at your
+            next renewal. Free-tier access is provided directly by us at our discretion and may be
+            modified or withdrawn.
           </p>
         </Card>
 

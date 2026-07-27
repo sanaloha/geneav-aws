@@ -1,5 +1,8 @@
 server:
   port: 8080
+  # Honour X-Forwarded-Proto/-Host from Caddy so OAuth2 redirect URIs (Sign in
+  # with Microsoft) are built as https://<host>/..., not http://backend:8080/....
+  forward-headers-strategy: framework
   servlet:
     session:
       cookie:
@@ -55,6 +58,16 @@ geneav:
     # env-overridable like every other tunable.
     reset-cleanup-interval-ms: ${GENEAV_RESET_CLEANUP_INTERVAL_MS:3600000}
     reset-cleanup-initial-delay-ms: ${GENEAV_RESET_CLEANUP_INITIAL_DELAY_MS:60000}
+    # "Sign in with Microsoft" (Entra ID OIDC). Off by default: with no client
+    # credentials the login button is not rendered and no OAuth2 routes exist.
+    # The app registration is MULTI-tenant (any Entra org or MSA can sign in);
+    # issuer validation is per-token, see MicrosoftOidcConfig.
+    microsoft:
+      enabled: ${GENEAV_MICROSOFT_LOGIN_ENABLED:false}
+      client-id: ${MICROSOFT_LOGIN_CLIENT_ID:}
+      client-secret: ${MICROSOFT_LOGIN_CLIENT_SECRET:}
+      # Where the browser lands after a completed Microsoft sign-in.
+      post-login-url: ${GENEAV_MICROSOFT_POST_LOGIN_URL:http://localhost:3000/login}
   clamav:
     host: ${CLAMAV_HOST:localhost}
     port: ${CLAMAV_PORT:3310}
@@ -146,6 +159,43 @@ geneav:
         monthly-scan-quota: ${GENEAV_PLAN_SCALE_QUOTA:500000}
         rate-per-minute: ${GENEAV_PLAN_SCALE_RPM:300}
         burst: ${GENEAV_PLAN_SCALE_BURST:150}
+
+  marketplace:
+    # Microsoft Marketplace (Azure Marketplace / AppSource) SaaS fulfillment.
+    # Disabled by default, mirroring geneav.mail and geneav.openai: with no
+    # credentials every /api/v1/marketplace endpoint returns 503 and the site
+    # behaves exactly as it does today. The webhook still requires a valid
+    # Entra JWT even when enabled — see WebhookJwtValidator.
+    enabled: ${GENEAV_MARKETPLACE_ENABLED:false}
+    # The single-tenant fulfillment app (App B in the deploy notes), NOT the
+    # multi-tenant sign-in app. Its tenant + client id are what Partner Center's
+    # Technical Configuration holds and what the webhook JWT is validated against.
+    tenant-id: ${MARKETPLACE_TENANT_ID:}
+    client-id: ${MARKETPLACE_CLIENT_ID:}
+    client-secret: ${MARKETPLACE_CLIENT_SECRET:}
+    # Marketplace API contract. The resource id is fixed by Microsoft and is the
+    # token scope (…/.default) as well as the appid/azp the webhook JWT carries.
+    # Overridable ONLY so scripts/replay-marketplace-webhook.sh can replay events
+    # locally with a self-minted token; never override it in production.
+    api-base-url: ${MARKETPLACE_API_BASE_URL:https://marketplaceapi.microsoft.com/api/saas}
+    api-version: "2018-08-31"
+    resource-id: ${MARKETPLACE_RESOURCE_ID:20e940b3-4c77-4b0b-9a53-9e16a1b010a7}
+    login-base-url: ${MARKETPLACE_LOGIN_BASE_URL:https://login.microsoftonline.com}
+    # Offer identity, used to build the public listing URL and sanity-check
+    # resolved purchases. Offer and plan ids are PERMANENT once published.
+    publisher-id: ${MARKETPLACE_PUBLISHER_ID:}
+    offer-id: ${MARKETPLACE_OFFER_ID:geneav-scan-api}
+    # Partner Center plan id -> geneav plan key (geneav.plans.definitions).
+    # An id missing here changes no plan and logs loudly; it must never
+    # default to a bigger tier than was paid for.
+    plan-map:
+      geneav-starter: starter
+      geneav-pro: pro
+      geneav-scale: scale
+    # Expiry sweep: downgrades accounts whose subscription lapsed. Cadence is
+    # env-overridable like every other tunable (cf. geneav.auth.reset-cleanup-*).
+    expiry-sweep-interval-ms: ${GENEAV_MARKETPLACE_EXPIRY_SWEEP_INTERVAL_MS:3600000}
+    expiry-sweep-initial-delay-ms: ${GENEAV_MARKETPLACE_EXPIRY_SWEEP_INITIAL_DELAY_MS:120000}
 
 springdoc:
   swagger-ui:

@@ -128,6 +128,13 @@ export default function Privacy() {
               assistant are forwarded to OpenAI to generate a reply. Do not paste sensitive data
               into the chat.
             </li>
+            <li>
+              <strong>Microsoft</strong> — paid plans are sold through the Azure Marketplace, where
+              Microsoft is the merchant of record and processes your billing details; we receive
+              subscription details (plan, status, purchaser email) but never your payment method.
+              If you sign in with Microsoft, we receive your name, email address, and directory
+              identifiers from Microsoft Entra ID.
+            </li>
           </ul>
         </Card>
 

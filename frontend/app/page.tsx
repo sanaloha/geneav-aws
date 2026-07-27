@@ -85,8 +85,9 @@ const features = [
 
 // Quotas and rates here must match `geneav.plans.definitions` in the backend's
 // application.yml — that config is what actually meters and throttles.
-// There is no checkout yet, so every paid CTA opens an email rather than
-// implying self-serve upgrade. Swap to billing links once Stripe is wired up.
+// Paid plans are sold through the Microsoft Azure Marketplace (Microsoft is
+// the merchant of record); the CTAs link to the listing via /marketplace.
+// Marketplace plan ids map to these tiers in `geneav.marketplace.plan-map`.
 
 // The free quota appears twice on this page: in the pricing card and under the
 // hero CTA. It is defined once here because those two drifted apart when the
@@ -111,16 +112,16 @@ const plans = [
     name: "Starter",
     price: "$19",
     period: "/month",
-    note: "Billed monthly",
-    cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "secondary" as const },
+    note: "Via Azure Marketplace",
+    cta: { label: "Get on Azure Marketplace", href: "/marketplace", variant: "secondary" as const },
     limits: ["10,000 scans per month", "30 requests per minute", "Everything in Free"],
   },
   {
     name: "Pro",
     price: "$39",
     period: "/month",
-    note: "Billed monthly",
-    cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "primary" as const },
+    note: "30-day free trial · via Azure Marketplace",
+    cta: { label: "Start free trial", href: "/marketplace", variant: "primary" as const },
     limits: [
       "100,000 scans per month",
       "120 requests per minute",
@@ -133,8 +134,8 @@ const plans = [
     name: "Scale",
     price: "$149",
     period: "/month",
-    note: "Billed monthly",
-    cta: { label: "Get in touch", href: "mailto:admin@geneav.com", variant: "secondary" as const },
+    note: "Via Azure Marketplace",
+    cta: { label: "Get on Azure Marketplace", href: "/marketplace", variant: "secondary" as const },
     limits: [
       "500,000 scans per month",
       "300 requests per minute",

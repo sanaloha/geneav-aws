@@ -31,6 +31,14 @@ public class Account {
     @Column(nullable = false)
     private String plan;
 
+    /**
+     * Where the current plan came from: "none" for the self-serve free tier, or
+     * "marketplace" when a live Microsoft Marketplace subscription set it. Only
+     * billing code writes this; the scan/quota path never reads it.
+     */
+    @Column(name = "billing_source", nullable = false)
+    private String billingSource = "none";
+
     @Column(nullable = false)
     private String status;
 
@@ -100,6 +108,14 @@ public class Account {
 
     public void setPlan(String plan) {
         this.plan = plan;
+    }
+
+    public String getBillingSource() {
+        return billingSource;
+    }
+
+    public void setBillingSource(String billingSource) {
+        this.billingSource = billingSource;
     }
 
     public String getStatus() {

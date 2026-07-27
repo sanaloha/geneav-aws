@@ -4,6 +4,7 @@ import com.geneav.scan.account.Account;
 import com.geneav.scan.account.AccountService;
 import com.geneav.scan.account.CurrentAccount;
 import com.geneav.scan.account.PasswordResetService;
+import com.geneav.scan.account.SessionService;
 import com.geneav.scan.account.SignupAttribution;
 import com.geneav.scan.dto.AccountDtos.AttributionPayload;
 import com.geneav.scan.dto.AccountDtos.ForgotPasswordRequest;
@@ -21,12 +22,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,14 +30,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
-import java.util.List;
 
 /**
  * Dashboard authentication: email/password signup, login, logout, and the current
  * session. On success a Spring Security context is persisted to an HttpOnly cookie
  * session; the dashboard then calls the management endpoints with that cookie.
- * Google OAuth2 login is added in a later slice.
+ * "Sign in with Microsoft" (Entra ID) runs through Spring's OAuth2 login and
+ * lands in the same session shape — see {@link com.geneav.scan.account.MicrosoftOidcConfig}.
  */
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -52,14 +47,15 @@ public class AuthController {
     private final CurrentAccount currentAccount;
     private final MailService mail;
     private final PasswordResetService passwordResets;
-    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+    private final SessionService sessions;
 
     public AuthController(AccountService accounts, CurrentAccount currentAccount, MailService mail,
-                          PasswordResetService passwordResets) {
+                          PasswordResetService passwordResets, SessionService sessions) {
         this.accounts = accounts;
         this.currentAccount = currentAccount;
         this.mail = mail;
         this.passwordResets = passwordResets;
+        this.sessions = sessions;
     }
 
     @Operation(summary = "Sign up with a password", description = "Creates a password account and starts a session.")
@@ -68,7 +64,7 @@ public class AuthController {
     public MeResponse signup(@Valid @RequestBody SignupPasswordRequest req,
                              HttpServletRequest request, HttpServletResponse response) {
         Account account = accounts.signupWithPassword(req.email(), req.password(), toAttribution(req.attribution()));
-        establishSession(account, request, response);
+        sessions.establish(account, request, response);
         // Best-effort and asynchronous — a mail failure must not fail the signup.
         mail.sendSignupAcknowledgement(account.getEmail());
         return toMe(account);
@@ -79,7 +75,7 @@ public class AuthController {
     public MeResponse login(@Valid @RequestBody LoginRequest req,
                             HttpServletRequest request, HttpServletResponse response) {
         Account account = accounts.authenticatePassword(req.email(), req.password());
-        establishSession(account, request, response);
+        sessions.establish(account, request, response);
         return toMe(account);
     }
 
@@ -138,20 +134,6 @@ public class AuthController {
         }
         return SignupAttribution.of(p.utmSource(), p.utmMedium(), p.utmCampaign(),
                 p.utmTerm(), p.utmContent(), p.referrer(), p.landingPath());
-    }
-
-    /** Establishes an authenticated session with the account id as the principal. */
-    private void establishSession(Account account, HttpServletRequest request, HttpServletResponse response) {
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                account.getId().toString(), null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-        HttpSession session = request.getSession(true);
-        request.changeSessionId(); // rotate to avoid session fixation
-        // Lets a later password change invalidate sessions issued before it.
-        session.setAttribute(CurrentAccount.AUTHENTICATED_AT, Instant.now());
-        securityContextRepository.saveContext(context, request, response);
     }
 
     private static MeResponse toMe(Account account) {

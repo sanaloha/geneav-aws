@@ -36,6 +36,13 @@ const subprocessors = [
     location: "East US",
   },
   {
+    name: "Microsoft (Marketplace & Entra ID)",
+    purpose:
+      "Paid-plan billing (merchant of record for Azure Marketplace purchases) and optional Microsoft sign-in",
+    data: "Purchase and subscription details; sign-in identity (name, email, tenant)",
+    location: "Global",
+  },
+  {
     name: "Hostinger",
     purpose: "Transactional email — signup acknowledgements and password resets",
     data: "Email address",

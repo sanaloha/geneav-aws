@@ -28,6 +28,18 @@ analytics.geneav.com {
 {$GENEAV_HOST} {
 	encode gzip
 
+	# Microsoft Marketplace webhook: MUST be declared ahead of the /api/* block
+	# so its per-IP rate limit never applies. Microsoft retries delivery up to
+	# 500 times over eight hours from a small set of source IPs — throttling it
+	# would silently break subscription lifecycle events. The backend validates
+	# the Entra JWT on every call; that, not a rate limit, is the guard here.
+	handle /api/v1/marketplace/webhook {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy backend:8080
+	}
+
 	# Scan API → backend. /api prefix PRESERVED (handle, not handle_path).
 	handle /api/* {
 		request_body {

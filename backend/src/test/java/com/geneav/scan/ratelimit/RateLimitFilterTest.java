@@ -34,6 +34,11 @@ class RateLimitFilterTest {
         String health() {
             return "{}";
         }
+
+        @PostMapping("/marketplace/webhook")
+        String webhook() {
+            return "{}";
+        }
     }
 
     private MockMvc mvcWith(RateLimitProperties props) {
@@ -74,6 +79,19 @@ class RateLimitFilterTest {
         for (int i = 0; i < 5; i++) {
             mvc.perform(get("/api/v1/health").contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    void marketplaceWebhookIsNeverThrottled() throws Exception {
+        // Microsoft retries webhook delivery from few IPs; its JWT (validated
+        // in the controller) is the guard, not this filter.
+        RateLimitProperties props = new RateLimitProperties();
+        props.setOther(new RateLimitProperties.Limit(1, 1));
+        MockMvc mvc = mvcWith(props);
+
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(post("/api/v1/marketplace/webhook")).andExpect(status().isOk());
         }
     }
 
