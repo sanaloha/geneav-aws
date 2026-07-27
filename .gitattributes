@@ -9,31 +9,35 @@ Dockerfile  text eol=lf
 .env*       text eol=lf
 
 # ---------------------------------------------------------------------------
-# What ships to the production VM.
+# What ships to the production box.
 #
-# scripts/deploy-vm.sh delivers a release by inlining `git archive HEAD` into an
-# Azure run-command payload, which has a hard size ceiling (~256 KB; the script
-# guards at 200 KB). Adding the blog tipped the repo over it, and the failure
-# mode is a refused deploy rather than a degraded one.
+# NO LONGER LOAD-BEARING (27 July 2026). These rules existed because the deploy
+# inlined `git archive HEAD` into the remote script and kept colliding with the
+# control plane's payload ceiling — adding the blog tipped it over, and the
+# failure mode was a silently refused deploy. That whole mechanism is gone:
+# images are built in CI and pulled from ECR, and the only thing still travelling
+# inline is four small config files. scripts/deploy-lightsail.sh guards at 90 KB
+# against SSM's ~100 KB limit, and the payload is a few KB regardless of how
+# large this repo gets.
+#
+# The rules are kept because they are still correct and still make `git archive`
+# smaller for anyone using it. They are no longer the thing standing between you
+# and a broken deploy, so a new top-level file does not need to be added here.
 #
 # `git archive` honours export-ignore, so listing a path here keeps it out of the
-# release tarball and changes nothing else. The rule is simply: if
-# `docker compose build` does not read it, the VM does not need it.
+# tarball and changes nothing else. The rule is simply: if `docker compose build`
+# does not read it, the box does not need it.
 #
 #   docs/       reference material, read on GitHub
-#   .github/    workflows run on the runner, never on the VM
-#   scripts/    deploy-vm.sh runs from the operator's machine or CI, not the VM
+#   .github/    workflows run on the runner, never on the box
+#   scripts/    the deploy script runs from CI or the operator's machine
 #   *.md        READMEs and plans; nothing at runtime parses markdown
 #   geneav.sh / geneav.ps1            local docker-stack helpers
 #   geneav.postman_collection.json    published to users, not used by the stack
-#   .env.prod.example                 template; the real .env.prod lives on the VM
+#   .env.prod.example                 template; the real .env.prod lives on the box
 #
 # NOTICE is deliberately NOT excluded: it carries the ClamAV/GPL attribution and
 # should travel with any deployed copy of the software.
-#
-# Effect: 182 KB -> 126 KB gzipped, 244 KB -> 168 KB base64-inlined. This buys
-# headroom, it does not remove the ceiling — when the archive nears 200 KB again
-# the answer is a container registry, as deploy-vm.sh already says.
 # ---------------------------------------------------------------------------
 docs/                           export-ignore
 .github/                        export-ignore

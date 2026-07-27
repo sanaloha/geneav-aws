@@ -3,6 +3,18 @@
     Downsizes geneav-vm to a cheaper burstable size, once Azure has capacity for one.
 
 .DESCRIPTION
+    ⚠️ OBSOLETE (27 Jul 2026) — DO NOT RUN. The problem this script existed to
+    solve was solved by leaving Azure entirely.
+
+    It was parked because eastus would not offer a B1ms or B2s at any price
+    (SkuNotAvailable / Capacity Restrictions), so the 8 GiB machine could not be
+    shrunk to fit a stack that measures ~2.0 GB. geneav now runs on an AWS
+    Lightsail 4 GB bundle at $24/month all-in — cheaper than the B2s this was
+    waiting for, with no capacity queue to sit in. See aws-provision.sh.
+
+    Kept only until the Azure resources are decommissioned, then delete. Running
+    it would resize a VM that is no longer serving traffic.
+
     PARKED as of 26 Jul 2026 — do not schedule this yet. See "WHY THIS IS PARKED"
     at the end of this comment block.
 

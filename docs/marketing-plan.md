@@ -275,9 +275,9 @@ Stating these stops 5 hrs/week being spread across twelve channels at zero depth
 - **No enterprise or outbound sales.** No organisations, teams, roles or SSO exist;
   [`business-case.md`](business-case.md) §6 says this *"blocks any team-sized deal."* Selling into it
   wastes the meeting.
-- **No EU-targeted campaigns yet.** Single region (Azure East US), no DPA. A West Europe VM
-  (~$87/month) unlocks this cheaply and is the highest-leverage market expansion available — but it
-  is a prerequisite, not a campaign.
+- **No EU-targeted campaigns yet.** Single region (AWS us-east-1), no DPA. A second instance in
+  `eu-west-1` (~$28/month) unlocks this cheaply and is the highest-leverage market expansion
+  available — but it is a prerequisite, not a campaign.
 - **No social-media presence building.** Low return per hour relative to content that ranks.
 - **No testimonials, logos or user counts.** There are none. Fabricating them destroys the one asset
   that is genuinely hard to copy.

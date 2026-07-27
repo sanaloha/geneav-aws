@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 #
+# ⚠️ DEPRECATED (27 July 2026) — SUPERSEDED BY ./aws-provision.sh
+#
+# geneav moved from a single Azure VM to AWS Lightsail: ~$87/month to ~$25, for
+# a box that measured ~2.0 GB of the 7.8 GB it was paying for. This file is kept
+# only so the Azure deployment can be rebuilt if the cutover has to be reversed.
+#
+# DELETE THIS FILE once the AWS box has been serving production for a while and
+# the Azure resources are decommissioned. It is not maintained: everything it
+# says about production was already drifting (see the SIZE note below).
+#
 # Provision a single Azure VM for the geneav stack.
 # Prereqs: `az login` already done, correct subscription selected.
 # Usage:   ./azure-provision.sh

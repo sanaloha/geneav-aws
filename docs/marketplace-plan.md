@@ -34,9 +34,9 @@ Two things beyond revenue justify it:
   geneav with money it has already spent. No card checkout can do that.
 
 **The cost:** a 3% marketplace service fee, and buyers must have a Microsoft
-account. Against ~$87/month of fixed infrastructure ([`business-case.md`](business-case.md)
-§5.1, corrected 27 July 2026) the fee does not move break-even at all: 3 Pro
-customers clear it with or without the 3%. The Microsoft-account requirement is
+account. Against ~$28/month of fixed infrastructure ([`business-case.md`](business-case.md)
+§5.1, rehosted to AWS 27 July 2026) the fee does not move break-even at all: a
+single Pro customer clears it with or without the 3%. The Microsoft-account requirement is
 the real constraint — see Risks.
 
 ---

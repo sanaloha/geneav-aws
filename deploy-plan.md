@@ -1,28 +1,37 @@
-# geneav — Production Readiness & Azure VM Deployment Plan
+# geneav — Production Readiness & AWS Lightsail Deployment Plan
 
 A plan to take geneav from a working local scaffold to a hardened deployment on a
-single Azure virtual machine. Companion to [`plan.md`](./plan.md) (product roadmap).
+single Linux box. Companion to [`plan.md`](./plan.md) (product roadmap).
 
-> Target: one Azure Linux VM running the existing three-container stack
-> (frontend + backend + ClamAV) behind a TLS reverse proxy.
+> Target: one AWS Lightsail instance running the container stack behind a TLS
+> reverse proxy.
+
+> **Rehosted from Azure, 27 July 2026.** Phases 0, 1, 3 and 4 below were written
+> for an Azure VM and are cloud-neutral, so they stand as-is. Phase 2 has been
+> rewritten for Lightsail. The move was driven by cost: a `Standard_D2s_v3` at
+> ~$87/month for a stack measuring ~2.0 GB, with eastus refusing to offer a
+> smaller SKU to shrink into. See [`docs/business-case.md`](docs/business-case.md).
 
 ## Decisions
 
 | Decision        | Choice                                              | Status |
 |-----------------|-----------------------------------------------------|--------|
 | **Scope**       | **Public production**                               | ✅ Decided |
-| **Domain/TLS**  | **Free `nip.io` wildcard hostname** (`<vm-ip>.nip.io`) | ✅ Decided |
+| **Domain/TLS**  | Registered domain (`geneav.com`); `nip.io` for staging cutover | ✅ Decided |
 
 **Scope is Public production**, so the full Phase 1 hardening applies — including the
 items marked _(prod-only)_ below (app-level rate limiting, optional API keys).
 
-**Hostname is a free `nip.io` wildcard.** `nip.io` resolves `<vm-ip>.nip.io` (and any
-label like `geneav.<vm-ip>.nip.io`) straight to the embedded IP with no DNS setup. Once
-the VM has its static public IP, the hostname is `<that-ip>.nip.io` and Caddy can obtain
-a real Let's Encrypt cert for it via the HTTP-01 challenge. **Caveat:** `nip.io` is a
-single shared registered domain, so it counts against Let's Encrypt's shared
-per-domain rate limits — fine for one cert, but if issuance fails with a rate-limit
-error, switch to `sslip.io` (equivalent) or fall back to a self-signed cert. See Risks.
+**Production runs on the registered domain `geneav.com`**, with `www` redirected to the
+apex and `analytics` on its own subdomain, all pointed at the Lightsail static IP.
+
+**`nip.io` remains the staging lever.** `nip.io` resolves `<ip>.nip.io` (and any label like
+`geneav.<ip-with-dashes>.nip.io`) straight to the embedded IP with no DNS setup, and Caddy
+can obtain a real Let's Encrypt cert for it over HTTP-01. That is how a freshly provisioned
+box gets verified end to end *before* production DNS is touched. **Caveat:** `nip.io` is a
+single shared registered domain, so it counts against Let's Encrypt's shared per-domain
+rate limits — fine for one cert, but if issuance fails with a rate-limit error, switch to
+`sslip.io` (equivalent). See Risks.
 
 ## Where the code stands today
 
@@ -35,7 +44,7 @@ error, switch to `sslip.io` (equivalent) or fall back to a self-signed cert. See
 - **ClamAV needs real memory** — `clamd` holds the signature database resident.
   Measured 26 July 2026: **VmRSS 974 MB, peak 987 MB** (~1 GB). Earlier revisions of
   this document said ~1.5–2 GB; that was an estimate and it was roughly 2x high.
-  Still the largest single consumer, and still the main driver of VM sizing.
+  Still the largest single consumer, and still the main driver of host sizing.
 - **End-to-end EICAR detection is still unverified** (`plan.md` marks it pending).
 
 ---
@@ -75,27 +84,37 @@ Closes the last two open GN-1 acceptance criteria.
 7. **Observability:** expose actuator `metrics`/`prometheus`, structured JSON logging,
    and keep the `clamav-db` volume so freshclam signature updates survive restarts.
 
-## Phase 2 — Azure VM provisioning
+## Phase 2 — AWS Lightsail provisioning
 
-- **VM:** Ubuntu 22.04 LTS, **Standard B2ms (2 vCPU / 8 GiB)** recommended. B2s
-  (2 vCPU / 4 GiB) is the bare floor given `clamd`'s memory footprint.
-  > **What was actually built is a Standard_D2s_v3** — same 2 vCPU / 8 GiB, but
-  > fixed-performance rather than burstable, and ~$9/month dearer. Measured
-  > 27 July 2026. The recommendation above was never applied; `azure-provision.sh`
-  > still defaults to B2ms, so it and production disagree. Since measured usage
-  > is ~2.0 GB of 7.8 GB, the open question is not B2ms vs D2s_v3 but whether
-  > either needs 8 GiB at all — see [`docs/business-case.md`](docs/business-case.md) §5.1.
-- **Networking (NSG):** allow **443** (and **80** for the ACME HTTP-01 challenge/redirect)
-  from the internet; restrict **SSH (22)** to your IP or use Azure Bastion.
-- **Public IP:** static — the `nip.io` hostname is derived from it, so it must not change
-  on VM restart.
-- **DNS:** none to configure. The hostname is simply `<static-public-ip>.nip.io` (e.g.
-  `geneav.20-1-2-3.nip.io`), which resolves to the IP automatically.
-- **Disk:** default OS disk is sufficient; the signature DB lives in a Docker volume.
+All of this is scripted in [`aws-provision.sh`](./aws-provision.sh).
+
+- **Instance:** Ubuntu 22.04, **Lightsail `medium_3_0`** — 4 GB / 2 vCPU / 80 GB SSD /
+  4 TB transfer, $24/month, **x86**. The 2 GB bundle is not viable: `clamd` alone holds
+  ~974 MB resident and a freshclam reload needs headroom above that. Staying on x86 keeps
+  CI's plain `docker build` valid; Graviton would work (the backend is pure JVM and the
+  arm64 SWC binaries are already in the lockfile) but would need buildx.
+  > **Why not EC2?** `t4g.medium` + 40 GB gp3 + an IPv4 address is ~$31/month before
+  > anything else. Lightsail bundles compute, disk, static IP and transfer into one price.
+- **Firewall:** **80 + 443 only**, and the default port-22 rule is *removed*.
+  `put-instance-public-ports` replaces the whole rule set rather than appending, which is
+  what makes that deletion possible. Break-glass SSH is `--allow-ssh-from <cidr>`.
+- **Static IP:** allocated and attached. Free while attached to a running instance, billed
+  if left dangling. DNS depends on it, so it must not change.
+- **DNS:** A records for `geneav.com`, `www` and `analytics` at the static IP. For staging
+  a fresh box before cutover, use `geneav.<ip-with-dashes>.nip.io` — no records needed.
+- **Registry:** two ECR repositories with **immutable tags** and a lifecycle policy keeping
+  the newest 5 images (~$0.30/month, versus $5 for ACR Basic).
+- **Identity:** GitHub OIDC → `geneav-ci` role (ECR push + SSM SendCommand, pinned to
+  `repo:sanaloha/geneav-aws:ref:refs/heads/main`); an SSM hybrid activation binding the box
+  to `geneav-ssm-instance` (SSM core + **pull-only** ECR).
+- **Disk:** the bundled 80 GB is ample; the signature DB lives in a Docker volume.
+- **Backups:** an S3 bucket with a **14-day** lifecycle rule — matching what the privacy
+  policy promises — plus a `s3:PutObject`-only IAM user for the backup sidecar.
 
 ## Phase 3 — Deploy
 
-- Install Docker Engine + the compose plugin on the VM.
+- Install Docker Engine + the compose plugin on the box (done by the instance's
+  user-data script on first boot).
 - Add a **reverse proxy with automatic HTTPS** in front. **Caddy** is the least-effort
   choice: one `Caddyfile`, automatic Let's Encrypt certs + renewal, built-in per-IP rate
   limiting. It terminates TLS and proxies `/` → frontend, `/api` → backend.
@@ -105,40 +124,47 @@ Closes the last two open GN-1 acceptance criteria.
   hours from a small set of source IPs, so the 20-events/minute limit would silently break
   subscription lifecycle events. The backend validates an Entra JWT on every call — that, not
   throttling, is the guard. The same exemption exists in `RateLimitFilter` and `ApiKeyAuthFilter`.
-- Add a **`docker-compose.prod.yml` override**: prod env vars, no public app ports,
-  restart policies, resource limits, and the Caddy service.
-- Deploy:
-  ```bash
-  git clone <repo> && cd geneav
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-  ```
+- Add a **`docker-compose.prod.yml` override**: prod env vars, restart policies, resource
+  limits, and the Caddy service. Host port publishing lives in `docker-compose.override.yml`,
+  which Compose auto-loads for local `docker compose up` but *not* when prod passes explicit
+  `-f` files — so prod publishes only Caddy's 80/443 plus a loopback-bound 8080 for the deploy
+  health check. This is done, and is what makes "no public app ports" true rather than
+  firewall-dependent.
+- Deploy: push to `main`. CI builds images, pushes them to ECR, and
+  `scripts/deploy-lightsail.sh` tells the box (via SSM) to pull the SHA-tagged images and
+  restart, rolling back if the pull, the start or the health check fails.
 
 ## Phase 4 — Operations
 
-- **CI/CD:** GitHub Actions — build + test (`mvn test`) on PR; optional SSH-deploy on
-  merge to `main`.
+- **CI/CD:** GitHub Actions — build + test on PR; on merge to `main`, build images, push to
+  ECR, deploy via SSM Run Command. Done.
 - **Certs & signatures:** Caddy auto-renews TLS; freshclam auto-updates signatures inside
   the ClamAV container (persisted via the `clamav-db` volume).
-- **Monitoring:** Azure Monitor + an uptime check against `GET /api/v1/health`.
-  **Now a prerequisite, not a nice-to-have** — see the availability note below.
-- ~~**Cost control:** Azure auto-shutdown schedule if this is a demo/dev box.~~
+- **Backups:** nightly `pg_dump -Fc` of both databases, local volume **and** S3, 14-day
+  retention in both. Done.
+- **Monitoring:** CloudWatch or a Lightsail metric alarm, plus an uptime check against
+  `GET /api/v1/health`. **Now a prerequisite, not a nice-to-have** — see the availability
+  note below. Still unconfigured.
+- ~~**Cost control:** a nightly stop/start schedule if this is a demo/dev box.~~
   **Incompatible with Marketplace billing.** Microsoft requires the landing page and the
-  webhook to be reachable **24/7**; a nightly deallocation window drops webhook deliveries and
+  webhook to be reachable **24/7**; a nightly shutdown window drops webhook deliveries and
   leaves customers on a plan they are not paying for, or paying for one they do not have.
-  Auto-shutdown is a dev/demo lever only — do not enable it on the box serving the offer.
+  It is a dev/demo lever only — do not enable it on the box serving the offer. (Lightsail
+  bills the bundle by the month whether the instance runs or not, so on this host it would
+  not have saved anything anyway.)
 
 ### Availability became contractual (27 July 2026)
 
 Publishing a transactable Marketplace offer changes the operational bar. Previously a single
-VM with no failover was an accepted risk for a free product; a missed webhook now has a
+box with no failover was an accepted risk for a free product; a missed webhook now has a
 billing consequence. Two items move from "planned" to "required before the offer goes live":
 
 - **Uptime monitoring and alerting** on `/api/v1/health` and the webhook path
   ([`docs/compliance-roadmap.md`](docs/compliance-roadmap.md) §6 item 7, still unconfigured).
-- **A deliberate answer on redundancy.** Deploys currently rebuild images on the production VM
-  itself, so there is a rebuild window with no failover
-  ([`docs/business-case.md`](docs/business-case.md) §5.6). Microsoft's webhook retries over
-  eight hours absorb a short window, but not an outage.
+- **A deliberate answer on redundancy.** The rebuild-on-the-production-box window is gone —
+  images are built in CI and the deploy is a pull — but it is still one instance in one
+  availability zone, and a failed deploy still costs a container restart. Microsoft's webhook
+  retries over eight hours absorb a short window, but not an outage.
 
 The mitigating detail worth knowing: the expiry sweep (`SubscriptionExpiryJob`) is a safety net
 that repairs entitlements a dropped webhook would otherwise leave stale, so a brief outage
@@ -150,26 +176,30 @@ degrades rather than corrupts. It is not a substitute for being up.
 
 | Artifact                     | Purpose                                             |
 |------------------------------|-----------------------------------------------------|
-| `docker-compose.prod.yml`    | Prod override: no public ports, restart + limits, Caddy |
+| `docker-compose.prod.yml`    | Prod override: restart + limits, Caddy, S3 backups   |
+| `docker-compose.override.yml`| Dev-only host port publishing, so prod publishes none |
 | `Caddyfile`                  | TLS termination + reverse proxy + per-IP rate limit |
 | Hardened `Dockerfile`s       | Non-root user, heap caps, pinned bases              |
 | `.env.prod.example`          | Documented prod environment variables               |
-| `.github/workflows/*.yml`    | CI (build/test), optional CD (deploy)               |
-| Azure provisioning notes     | VM size, NSG rules, DNS steps (this doc + runbook)  |
+| `.github/workflows/ci-cd.yml`| CI (build/test) + CD (ECR push, SSM deploy)        |
+| `aws-provision.sh`           | Lightsail, ECR, IAM/OIDC, SSM activation, S3 bucket |
+| `scripts/deploy-lightsail.sh`| Pull-and-restart deploy with health-check rollback  |
 
 ## Risks / watch-items
 
-- **ClamAV memory:** under-sizing the VM makes `clamd` OOM-kill mid-scan. 8 GiB recommended.
+- **ClamAV memory:** under-sizing the host makes `clamd` OOM-kill mid-scan. The 4 GB bundle
+  is chosen against a measured ~2.0 GB; the 2 GB bundle is not viable.
 - **First-boot delay:** initial signature DB download takes minutes; health checks must
   tolerate the `start_period`.
 - **Open scan endpoint:** without rate limiting, one client can saturate CPU/RAM. Treat
   Phase 1 item 3 as non-optional for anything internet-facing.
 - **Build-time frontend URL:** forgetting to set the API base URL at build produces a
   site that silently calls `localhost`. The same-origin `/api` approach avoids this.
-- **`nip.io` TLS rate limits:** `nip.io` is one shared registered domain under Let's
-  Encrypt's per-domain limits (50 certs/week, duplicate-cert caps). One cert is fine;
-  if issuance is rate-limited, use `sslip.io` instead or fall back to a self-signed cert.
-  Test against Let's Encrypt **staging** first to avoid burning the shared quota.
-- **`nip.io` dependency:** the hostname relies on the public `nip.io` resolver staying up.
-  Acceptable for a public demo/production-on-a-budget; swap in a registered domain later
-  with only a Caddyfile hostname change.
+- **SSM payload ceiling (~100 KB):** *tighter* than the control-plane limit that broke
+  deploys in July 2026. `deploy-lightsail.sh` refuses to send over 90 KB. If that guard ever
+  fires, something that is not configuration has crept into the tarball.
+- **Single AZ, single instance:** a Lightsail bundle is one machine in one availability
+  zone. Backups go to S3, but there is no failover.
+- **`nip.io` (staging only):** `nip.io` is one shared registered domain under Let's
+  Encrypt's per-domain limits. Fine for one cert during cutover; if issuance is rate-limited,
+  use `sslip.io`. Test against Let's Encrypt **staging** first to avoid burning the quota.

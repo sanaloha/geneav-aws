@@ -1,10 +1,11 @@
-# Production override for a single Azure VM.
-# Run WITHOUT the dev compose auto-override:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Production override for a single AWS Lightsail instance.
+#
+# Passing explicit -f files is what keeps docker-compose.override.yml (the dev
+# port publishing) out of the picture — see the note in that file.
 #
 # Requires a .env.prod file (see .env.prod.example) that defines GENEAV_HOST.
 # Load it explicitly, e.g.:
-#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 services:
   # TLS-terminating reverse proxy. Only this service faces the internet.
@@ -25,30 +26,40 @@ services:
       - frontend
       - backend
 
-  # Images are BUILT IN CI AND PULLED, never built here. The VM used to compile
+  # Images are BUILT IN CI AND PULLED, never built here. The box used to compile
   # both apps on every deploy, which meant builds contended with live traffic and
-  # the whole source tree had to be shipped through `az vm run-command` — a path
-  # that hit Azure's script-size ceiling in July 2026 and could not be raised.
+  # the whole source tree had to be shipped through the cloud control plane — a
+  # path that hit its script-size ceiling in July 2026 and could not be raised.
   #
   # The tag is the commit SHA, so a deploy is a pull of a known artifact and a
-  # rollback is re-pointing at the previous tag. `pull_policy: always` stops a
-  # stale local layer being preferred over what the registry now holds.
+  # rollback is re-pointing at the previous tag. ECR repositories are configured
+  # with IMMUTABLE tags, so a SHA cannot be quietly repointed at different bytes.
+  # `pull_policy: always` stops a stale local layer being preferred over what the
+  # registry now holds.
   #
   # NOTE: the base compose file still declares `build:` for local development.
   # Compose merges the two, so the deploy script must use `up --no-build` to be
   # certain the pulled image is what runs.
   frontend:
-    image: ${GENEAV_REGISTRY:-geneavacr.azurecr.io}/geneav-frontend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
+    image: ${GENEAV_REGISTRY:?set GENEAV_REGISTRY (the ECR registry host)}/geneav-frontend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
     pull_policy: always
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
 
   backend:
-    image: ${GENEAV_REGISTRY:-geneavacr.azurecr.io}/geneav-backend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
+    image: ${GENEAV_REGISTRY:?set GENEAV_REGISTRY (the ECR registry host)}/geneav-backend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
     pull_policy: always
     restart: unless-stopped
     mem_limit: 1g
+    # Bound to the LOOPBACK, not 0.0.0.0. This is the only app port published in
+    # production, and it exists so scripts/deploy-lightsail.sh can poll
+    # /api/v1/health without going through Caddy and TLS. A loopback bind is not
+    # reachable from off-box whatever the Lightsail firewall happens to say, so
+    # unlike the old 0.0.0.0 publishing it does not depend on the firewall being
+    # right.
+    ports:
+      - "127.0.0.1:8080:8080"
     environment:
       GENEAV_ALLOWED_ORIGINS: https://${GENEAV_HOST}
       # Links in transactional email must point at the public host.
@@ -148,9 +159,17 @@ services:
   # selectively with pg_restore and survives a Postgres major-version bump, which
   # a copy of the data directory does not.
   #
-  # NOTE: this writes to a Docker volume on the SAME HOST as the database. It
-  # protects against dropped tables, bad migrations and application bugs. It does
-  # NOT protect against losing the VM. Shipping these off-box is the next step.
+  # Each dump is written to a local Docker volume AND copied to S3. The local
+  # copy is the fast restore path for the common case (dropped table, bad
+  # migration, application bug); the S3 copy is the one that survives losing the
+  # instance, which the local copy explicitly does not. Until July 2026 only the
+  # local copy existed, which meant the backup did not protect against the single
+  # most likely total-loss scenario.
+  #
+  # BACKUP_S3_BUCKET is optional: leave it unset and the sidecar behaves exactly
+  # as it did before, dumping locally only. It should be set in production.
+  # The IAM user behind these credentials can ONLY s3:PutObject — it cannot list,
+  # read or delete, so a compromised box cannot shred the off-box backups.
   postgres-backup:
     image: postgres:16-alpine
     container_name: geneav-postgres-backup
@@ -161,6 +180,10 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${BACKUP_AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_AWS_SECRET_ACCESS_KEY:-}
     volumes:
       - postgres-backups:/backups
     entrypoint: ["sh", "-c"]
@@ -168,13 +191,27 @@ services:
     # only the first token.
     command:
       - |
-        echo "backup loop started; retention $${BACKUP_RETENTION_DAYS}d"
+        if [ -n "$${BACKUP_S3_BUCKET}" ]; then
+          # ~40 MB, installed once per container start rather than baked into a
+          # custom image. Not worth a Dockerfile for one binary.
+          apk add --no-cache aws-cli >/dev/null 2>&1 || echo "WARN: aws-cli install failed; S3 upload disabled" >&2
+        fi
+        echo "backup loop started; retention $${BACKUP_RETENTION_DAYS}d, s3=$${BACKUP_S3_BUCKET:-none}"
         while true; do
           ts=$$(date -u +%Y%m%dT%H%M%SZ)
           for db in ${POSTGRES_DB:-geneav} umami; do
             out="/backups/$${db}-$${ts}.dump"
             if pg_dump -h postgres -U ${POSTGRES_USER:-geneav} -d "$${db}" -Fc -f "$${out}" 2>/tmp/err; then
               echo "$$(date -u +%FT%TZ) ok   $${out} ($$(du -h "$${out}" | cut -f1))"
+              # Upload failure is logged, never fatal: a box that cannot reach S3
+              # should still be taking local dumps.
+              if [ -n "$${BACKUP_S3_BUCKET}" ] && command -v aws >/dev/null 2>&1; then
+                if aws s3 cp "$${out}" "s3://$${BACKUP_S3_BUCKET}/$${db}/$$(basename "$${out}")" >/dev/null 2>/tmp/s3err; then
+                  echo "$$(date -u +%FT%TZ) s3   $${db}/$$(basename "$${out}")"
+                else
+                  echo "$$(date -u +%FT%TZ) S3FAIL $${db}: $$(cat /tmp/s3err)" >&2
+                fi
+              fi
             else
               # A missing umami database on a fresh box is not a failure worth
               # crash-looping over; a failing geneav dump is worth shouting about.
@@ -184,6 +221,9 @@ services:
           done
           deleted=$$(find /backups -name '*.dump' -mtime +$${BACKUP_RETENTION_DAYS} -print -delete | wc -l)
           [ "$${deleted}" -gt 0 ] && echo "$$(date -u +%FT%TZ) pruned $${deleted} expired dump(s)"
+          # Bucket-side expiry is a 14-day lifecycle rule set by
+          # aws-provision.sh — the sidecar never deletes anything in S3. 14 is
+          # what the privacy policy promises; keep the two in step.
           sleep 86400
         done
 
@@ -193,16 +233,18 @@ volumes:
   postgres-backups:
 
 # ---------------------------------------------------------------------------
-# NOTE ON THE APP PORT MAPPINGS (3000 / 8080 / 3310):
-# Docker Compose MERGES (appends) list values like `ports:` across -f files, so a
-# prod override cannot "unpublish" the ports declared in docker-compose.yml.
-# On the VM these ports stay bound on the host, but the Azure NSG only allows
-# inbound 22/80/443 from the internet, so they are NOT externally reachable —
-# the firewall is the enforcement boundary here.
+# NOTE ON HOST PORTS — resolved July 2026.
 #
-# For defense-in-depth (recommended if you want the ports gone entirely), move
-# the `ports:` blocks out of docker-compose.yml into a docker-compose.override.yml
-# (Compose auto-loads it for local `docker compose up`, but it is NOT included when
-# you pass explicit -f files for prod). Then the base file has no host ports and
-# prod publishes nothing but Caddy's 80/443.
+# This used to say that 3000/8080/3310/5432 stayed bound on the host in
+# production and that the cloud firewall was the only thing keeping them off the
+# internet. That is no longer true. The `ports:` blocks moved out of
+# docker-compose.yml into docker-compose.override.yml, which Compose auto-loads
+# for a bare `docker compose up` but NOT when explicit -f files are passed. The
+# base file now publishes nothing, so production publishes:
+#
+#   caddy    80, 443            the only externally reachable ports
+#   backend  127.0.0.1:8080     loopback only, for the deploy health check
+#
+# The Lightsail instance firewall (80/443, no port 22 — see aws-provision.sh) is
+# now a second layer rather than the only one.
 # ---------------------------------------------------------------------------
