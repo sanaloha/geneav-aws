@@ -338,12 +338,26 @@ APP_ID=$(az ad app list --all --display-name geneav-app --query '[0].appId' -o t
 az ad sp create --id "$APP_ID"                      # errors harmlessly if present
 
 # 2. trust GitHub Actions on main (no secret involved; already created as geneav-main)
+#
+# The subject must match EXACTLY what GitHub sends, which is derived from the
+# repository's real name — `sanaloha/geneav-az`, not `sanaloha/geneav`. A
+# mismatch fails at the OIDC token exchange with AADSTS70021 ("No matching
+# federated identity record found"), which reads like a credentials problem
+# rather than a name problem. Verify against the remote:
+#   git remote get-url origin
 az ad app federated-credential create --id "$APP_ID" --parameters '{
   "name": "geneav-main",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:sanaloha/geneav:ref:refs/heads/main",
+  "subject": "repo:sanaloha/geneav-az:ref:refs/heads/main",
   "audiences": ["api://AzureADTokenExchange"]
 }'
+
+# If the credential already exists with the wrong subject, UPDATE it — creating
+# a second one with the same name fails, and the stale record keeps rejecting:
+#   CRED=$(az ad app federated-credential list --id "$APP_ID" \
+#            --query "[?name=='geneav-main'].id" -o tsv)
+#   az ad app federated-credential update --id "$APP_ID" --federated-credential-id "$CRED" \
+#     --parameters '{"subject": "repo:sanaloha/geneav-az:ref:refs/heads/main"}'
 
 # 3. least privilege: run commands on the one VM, nothing else
 SUB=$(az account show --query id -o tsv)
