@@ -1,0 +1,37 @@
+# Local development only. Publishes the app ports on the host so you can reach
+# the frontend, the API, ClamAV and Postgres directly from your machine.
+#
+# Compose AUTO-LOADS this file for a bare `docker compose up`, and does NOT load
+# it when explicit -f files are passed:
+#
+#   docker compose up                                    <- dev, this file applies
+#   docker compose -f docker-compose.yml \
+#                  -f docker-compose.prod.yml up -d      <- prod, this file ignored
+#
+# That asymmetry is the whole point. `ports:` is a list, and Compose MERGES
+# lists across -f files rather than replacing them, so anything published in
+# docker-compose.yml would be impossible to unpublish in production. Previously
+# 3000/8080/3310/5432 stayed bound on the production host and the cloud firewall
+# was the only thing stopping them being reachable from the internet. Now the
+# base file publishes nothing and production publishes only Caddy's 80/443
+# (plus a loopback-bound 8080 for the deploy health check — see
+# docker-compose.prod.yml).
+#
+# If you add a port here, it is a development convenience. Think twice before
+# assuming it exists anywhere else.
+services:
+  clamav:
+    ports:
+      - "3310:3310"
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  backend:
+    ports:
+      - "8080:8080"
+
+  frontend:
+    ports:
+      - "3000:3000"

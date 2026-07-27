@@ -25,15 +25,15 @@ const linkClass = "font-semibold text-brand";
 
 // Explicit rather than computed, so it reflects when the content actually
 // changed. Matches the privacy policy and terms.
-const LAST_UPDATED = "July 25, 2026";
+const LAST_UPDATED = "July 27, 2026";
 
 // Every third party that touches customer data, for security questionnaires.
 const subprocessors = [
   {
-    name: "Microsoft Azure",
+    name: "Amazon Web Services",
     purpose: "Hosting and compute — all application and database infrastructure",
     data: "All service data at rest and in transit",
-    location: "East US",
+    location: "US East (N. Virginia)",
   },
   {
     name: "Microsoft (Marketplace & Entra ID)",
@@ -144,16 +144,17 @@ export default function Security() {
           <Server size={22} className="mb-3 text-brand" aria-hidden />
           <h2 className="m-0 text-lg font-bold text-ink">Infrastructure</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">
-            geneav runs on Microsoft Azure in the East US region. Application components run as
-            isolated containers; only ports 80 and 443 are reachable from the internet, enforced at
-            the network security group. Administrative access is restricted to a small set of known
-            addresses.
+            geneav runs on Amazon Web Services in the US East (N. Virginia) region. Application
+            components run as isolated containers on a private network; only ports 80 and 443 are
+            published to the host at all, and the instance firewall admits only those two from the
+            internet.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-            Deployments are automated from version control and require no inbound SSH access —
-            releases are delivered through Azure&apos;s authenticated management plane using
-            short-lived federated credentials, with automatic rollback if a build fails. Malware
-            signature databases are updated automatically and regularly from the ClamAV project.
+            Deployments are automated from version control and require no inbound SSH access — the
+            server has no SSH port open to the internet. Releases are delivered through AWS&apos;s
+            authenticated management plane using short-lived federated credentials, with automatic
+            rollback if a release fails its health check. Malware signature databases are updated
+            automatically and regularly from the ClamAV project.
           </p>
         </Card>
 
@@ -230,9 +231,9 @@ export default function Security() {
               roadmap and honestly represented as absent today.
             </li>
             <li>
-              <strong>Single region, no failover.</strong> All processing happens in Azure East US.
-              We cannot currently offer EU or other data-residency options, and an outage in that
-              region is an outage for the service.
+              <strong>Single region, no failover.</strong> All processing happens in AWS US East
+              (N. Virginia). We cannot currently offer EU or other data-residency options, and an
+              outage in that region is an outage for the service.
             </li>
             <li>
               <strong>No scan history or audit log.</strong> Verdicts are returned to you and not

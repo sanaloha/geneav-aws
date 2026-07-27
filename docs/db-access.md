@@ -8,16 +8,23 @@ that writes.
 
 | | |
 |---|---|
-| VM | `geneav-vm` in resource group `GENEAV-RG`, `172.190.148.55` |
+| Host | AWS Lightsail instance `geneav` (us-east-1), reached as SSM managed node `mi-…` |
 | Container | `geneav-postgres` (postgres:16-alpine) |
 | Database / user | `geneav` / `geneav` |
-| Password | `POSTGRES_PASSWORD` in `~/geneav/.env.prod` on the VM (root-owned, `0600`) |
+| Password | `POSTGRES_PASSWORD` in `/home/ubuntu/geneav/.env.prod` (root-owned, `0600`) |
 | Data | the `geneav_postgres-data` Docker volume — persists across redeploys |
 
 Tables: `account`, `api_key`, `password_reset_token`, `usage_counter`,
-`flyway_schema_history`.
+`marketplace_subscription`, `flyway_schema_history`.
 
 The database name and user are the Compose defaults; `.env.prod` overrides neither.
+
+> **There is no SSH.** The instance firewall has no port 22 rule — deploys go through
+> AWS Systems Manager, and so does interactive access. Find the node id with:
+> ```bash
+> aws ssm describe-instance-information --region us-east-1 \
+>   --query 'InstanceInformationList[].[InstanceId,ComputerName,PingStatus]' --output table
+> ```
 
 ## Route A — psql in the container
 
@@ -25,12 +32,12 @@ The normal route. Needs no password: the connection is over a unix socket inside
 container, which Postgres trusts.
 
 ```bash
-az vm start -g GENEAV-RG -n geneav-vm     # only if the nightly shutdown deallocated it
-ssh azureuser@172.190.148.55
-docker exec -it geneav-postgres psql -U geneav -d geneav
+aws ssm start-session --target <mi-...> --region us-east-1
+sudo docker exec -it geneav-postgres psql -U geneav -d geneav
 ```
 
-Docker needs no `sudo` here — `azureuser` is in the `docker` group.
+Session Manager lands you as `ssm-user`, which is **not** in the `docker` group — hence
+the `sudo`. (`ubuntu` is in the group, if you switch to it.)
 
 Useful meta-commands:
 
@@ -44,25 +51,40 @@ Useful meta-commands:
 For a single query without an interactive session, straight from your laptop:
 
 ```bash
-ssh azureuser@172.190.148.55 \
-  "docker exec geneav-postgres psql -U geneav -d geneav -c '\dt'"
+aws ssm send-command --region us-east-1 \
+  --instance-ids <mi-...> --document-name AWS-RunShellScript \
+  --parameters 'commands=["docker exec geneav-postgres psql -U geneav -d geneav -c \"\\dt\""]' \
+  --query 'Command.CommandId' --output text
+# then read the output back:
+aws ssm get-command-invocation --region us-east-1 \
+  --command-id <id> --instance-id <mi-...> --query StandardOutputContent --output text
 ```
 
-## Route B — SSH tunnel for a GUI client
+## Route B — port forward for a GUI client
 
-Port 5432 is bound on the VM host, but the NSG only admits inbound 22/80/443, so it is
-not reachable directly. Tunnel it instead:
+Postgres is **not** published on the host at all any more (only Caddy's 80/443 and a
+loopback-bound 8080 are), so there is nothing on the host to forward to directly.
+Publish it temporarily inside a session, or forward through Session Manager:
 
 ```bash
-ssh -L 15432:localhost:5432 azureuser@172.190.148.55
+# expose 5432 on the box's loopback for the duration of your session
+sudo docker exec -d geneav-postgres true   # (container is already running)
+# then, from your laptop:
+aws ssm start-session --region us-east-1 --target <mi-...> \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["5432"],"localPortNumber":["15432"]}'
 ```
 
-Leave that session open and point pgAdmin / DBeaver / DataGrip at `localhost:15432`,
-database `geneav`, user `geneav`. This route **does** need the password, since it is a
-TCP rather than socket connection:
+> The port-forwarding document forwards to a port **on the instance**, so this only works
+> while something is listening there. If nothing is, add a temporary
+> `-p 127.0.0.1:5432:5432` publish to the postgres container, or just use Route A —
+> which is the reason Route A is the normal route.
+
+Point pgAdmin / DBeaver / DataGrip at `localhost:15432`, database `geneav`, user `geneav`.
+This route **does** need the password, since it is a TCP rather than socket connection:
 
 ```bash
-sudo grep POSTGRES_PASSWORD ~/geneav/.env.prod
+sudo grep POSTGRES_PASSWORD /home/ubuntu/geneav/.env.prod
 ```
 
 ## Queries that have earned their keep
@@ -100,8 +122,11 @@ This is live customer data.
 - Wrap exploratory work in `begin;` … `rollback;` so a stray statement cannot land.
 - Take a backup before any write:
   ```bash
-  docker exec geneav-postgres pg_dump -U geneav geneav | gzip > ~/geneav-$(date +%F).sql.gz
+  sudo docker exec geneav-postgres pg_dump -U geneav geneav | gzip > ~/geneav-$(date +%F).sql.gz
   ```
+  There is also a nightly automatic dump (`geneav-postgres-backup`) to a local volume and to
+  S3, retained 14 days in both — but take your own before touching anything, rather than
+  hoping last night's is recent enough.
 - **Schema changes belong in a Flyway migration** under
   `backend/src/main/resources/db/migration/`, never in a live psql session. A manual
   `alter table` drifts from the repo, is not reproduced by the next deploy, and can fail

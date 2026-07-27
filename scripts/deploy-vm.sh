@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+#
+# ⚠️ DEPRECATED (27 July 2026) — SUPERSEDED BY scripts/deploy-lightsail.sh
+#
+# CI no longer calls this. It is kept only as the rollback path while the AWS
+# cutover beds in: it still works against the Azure VM if that VM still exists
+# and .env.prod on it still holds the ACR pull token. DELETE once Azure is
+# decommissioned.
+#
+# The AWS replacement keeps this script's structure almost verbatim — the config
+# tarball, .config-prev rollback, `up --no-build`, the health poll and the
+# completion-marker check are all the same. Only the transport changed:
+# `az vm run-command` became `aws ssm send-command`.
+#
 # Deploy a commit to the Azure VM by pulling pre-built images from ACR.
 #
 # Everything goes through the Azure control plane (az vm run-command), so this

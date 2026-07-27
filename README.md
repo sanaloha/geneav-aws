@@ -287,163 +287,167 @@ cd backend && mvn test
 > Set one without the other and the button either never appears or leads to an
 > OAuth2 route the backend has not registered.
 
-> In production, set a strong `POSTGRES_PASSWORD` in the VM's `.env.prod` (the prod
+> In production, set a strong `POSTGRES_PASSWORD` in the box's `.env.prod` (the prod
 > compose refuses to start without it). The Postgres data lives in the
 > `postgres-data` Docker volume, which survives redeploys.
 
 > The chat assistant needs `OPENAI_API_KEY`. Locally, export it before starting
 > the stack (e.g. `OPENAI_API_KEY=sk-... docker compose up`); in production put it
-> in the VM's gitignored `.env.prod`. Never commit a real key — `.env.prod.example`
+> in the box's gitignored `.env.prod`. Never commit a real key — `.env.prod.example`
 > ships only a placeholder.
 
 ## Deployment
 
-Production runs on a single Azure VM (`geneav-vm` / `GENEAV-RG`) behind Caddy.
-Pushing to `main` deploys automatically once CI passes.
+Production runs on a single **AWS Lightsail** instance (4 GB / 2 vCPU, `us-east-1`)
+behind Caddy. Pushing to `main` deploys automatically once CI passes.
 
-Deploys go through the **Azure control plane** (`az vm run-command`), not SSH.
-The VM's NSG only allows port 22 from a couple of fixed addresses, so a
-GitHub-hosted runner (dynamic egress IP) could never reach it.
+> **Moved from Azure, July 2026.** The stack was on a `Standard_D2s_v3` VM at
+> ~$87/month while measuring ~2.0 GB of the 7.8 GB it was paying for, and eastus
+> would not offer a smaller SKU (`SkuNotAvailable`) to shrink into. Lightsail's
+> 4 GB bundle is $24/month with the static IP, 80 GB SSD and 4 TB of transfer
+> included — about **$25/month all-in against $87**. Nothing in the application
+> changed; only the host, the registry and the deploy transport.
 
-**Images are built in CI and pulled from Azure Container Registry** — the VM
-compiles nothing. CI builds `geneav-backend` and `geneav-frontend` tagged with
-the commit SHA, pushes them to `geneavacr.azurecr.io`, and `scripts/deploy-vm.sh`
-tells the VM to pull that tag and restart.
+Deploys go through **AWS Systems Manager Run Command**, not SSH. The instance has
+**no port 22 rule at all** — the SSM agent polls outbound — which also sidesteps
+the problem that killed the SSH approach: GitHub-hosted runners have dynamic
+egress IPs and cannot be allow-listed.
 
-> Until July 2026 the deploy base64'd the whole source tree into the
-> run-command script and the VM rebuilt both images. That ended when the payload
-> hit ~199 KB: Azure returned `Enable succeeded` with empty output and silently
-> did nothing. The effective limit is well below the documented 256 KB, and
-> trimming could not help because the payload was application source. Building
-> in CI also stops deploys competing with live traffic for CPU.
+**Images are built in CI and pulled from ECR** — the box compiles nothing. CI
+builds `geneav-backend` and `geneav-frontend` tagged with the commit SHA, pushes
+them to `<acct>.dkr.ecr.us-east-1.amazonaws.com`, and
+`scripts/deploy-lightsail.sh` tells the box to pull that tag and restart. The ECR
+repositories use **immutable tags**, so a SHA cannot later be repointed at
+different bytes, and a lifecycle policy keeps only the newest 5 images.
 
-**Credentials are split by direction.** CI holds a push-scoped ACR token; the VM
-holds a **pull-only** one in `.env.prod`, so a compromise of the box cannot push
-a poisoned image. Neither is the registry admin credential, and both are
-revocable independently.
+> Until July 2026 the deploy base64'd the whole source tree into the remote
+> script and the box rebuilt both images. That ended when the payload hit
+> ~199 KB and the control plane silently truncated it. Building in CI also stops
+> deploys competing with live traffic for CPU. SSM's parameter ceiling (~100 KB)
+> is *tighter* than the one that caused the original failure, so
+> `deploy-lightsail.sh` refuses to send a payload over 90 KB rather than let it
+> be truncated.
+
+**Credentials are split by direction.** CI assumes an IAM role that can push; the
+box uses its SSM node role, which is scoped **pull-only** to the two
+repositories — so a compromise of the box cannot push a poisoned image. Neither
+is an admin credential, and both are revocable independently.
+
+### Provision from scratch
+
+```bash
+./aws-provision.sh --dry-run     # show what would be created
+./aws-provision.sh               # Lightsail + ECR + IAM + SSM activation + S3 backups
+```
+
+It prints the static IP, the ECR registry, the GitHub secrets/variables to set,
+and the **one-shot** SSM activation code. Follow the "Next" steps it prints.
 
 ### Deploy manually
 
 ```bash
-az login
-scripts/deploy-vm.sh              # deploy the current commit (must be pushed to ACR)
-scripts/deploy-vm.sh --dry-run    # print the remote script, change nothing
-scripts/deploy-vm.sh <sha>        # deploy/roll back to a specific tag
+export AWS_REGION=us-east-1
+export GENEAV_REGISTRY=<acct>.dkr.ecr.us-east-1.amazonaws.com
+export GENEAV_SSM_NODE=mi-0123456789abcdef0
+
+scripts/deploy-lightsail.sh              # deploy the current commit (must be in ECR)
+scripts/deploy-lightsail.sh --dry-run    # print the remote script, change nothing
+scripts/deploy-lightsail.sh <sha>        # deploy/roll back to a specific tag
 ```
 
 The script pulls the SHA-tagged images, restarts, waits for
 `GET /api/v1/health`, and **rolls back to the previously deployed SHA** if the
-pull, the start, or the health check fails. The VM's gitignored `.env.prod` is
+pull, the start, or the health check fails. The box's gitignored `.env.prod` is
 never touched.
 
 To roll back by hand, deploy the previous SHA — the images are still in the
 registry:
 
 ```bash
-scripts/deploy-vm.sh <previous-sha>
+scripts/deploy-lightsail.sh <previous-sha>
 ```
 
-### One-time registry setup
+### Getting a shell on the box
+
+There is no SSH. Use a Session Manager session:
 
 ```bash
-az acr create -g GENEAV-RG -n geneavacr --sku Basic --admin-enabled false
-
-# Pull-only token for the VM -> .env.prod as ACR_TOKEN_USER / ACR_TOKEN_PASSWORD
-az acr token create -r geneavacr -n geneav-vm-pull \
-  --repository geneav-backend content/read \
-  --repository geneav-frontend content/read
-
-# Push token for CI -> repo secret ACR_TOKEN_PASSWORD
-az acr token create -r geneavacr -n geneav-ci-push \
-  --repository geneav-backend content/write content/read \
-  --repository geneav-frontend content/write content/read
+aws ssm start-session --target <mi-...> --region us-east-1
+aws ssm describe-instance-information --region us-east-1 \
+  --query 'InstanceInformationList[].[InstanceId,ComputerName,PingStatus]' --output table
 ```
+
+If you genuinely need SSH for break-glass, re-run the provisioner with
+`--allow-ssh-from <your-ip>/32`, and remove the rule afterwards.
 
 ### One-time CI setup
 
-The `deploy` job authenticates with **OIDC**, so no long-lived secret is stored
-in GitHub. Create an Entra app federated to this repo and grant it rights on the
-VM:
+`aws-provision.sh` does all of this; the commands below are the record of what
+it creates and how to verify it.
 
-**All three steps are already done in this tenant** (verified 27 July 2026):
-`geneav-app` exists with a service principal, its federated credential
-`geneav-main` trusts `repo:sanaloha/geneav-az:ref:refs/heads/main`, and it holds
-`Virtual Machine Contributor` scoped to `geneav-vm` alone. The steps below are
-kept as the record of how it was set up, and for rebuilding it elsewhere.
+The workflow authenticates with **GitHub OIDC → IAM role**, so no long-lived AWS
+key is stored in GitHub. The role's trust policy pins both the repository and the
+ref:
 
-Note that `az ad app list --show-mine` returns nothing if you are a guest user
-in the tenant — use `--all`, as below. To check the current state:
-
-```bash
-APP_ID=$(az ad app list --all --display-name geneav-app --query '[0].appId' -o tsv)
-az ad app federated-credential list --id "$APP_ID" --query "[].{name:name,subject:subject}" -o table
-az role assignment list --assignee "$APP_ID" --all --query "[].{role:roleDefinitionName,scope:scope}" -o table
+```
+"token.actions.githubusercontent.com:sub": "repo:sanaloha/geneav-aws:ref:refs/heads/main"
 ```
 
+> This string must match **exactly** what GitHub sends, which is derived from the
+> repository's real name. Check it against `git remote get-url origin` — the
+> equivalent Azure record was left pointing at the repo's *previous* name and
+> would have failed at the token exchange. A mismatch surfaces as a generic
+> credentials error, not a name error.
+
+Verify the current state:
+
 ```bash
-# 1. app registration (already done: geneav-app)
-az ad app create --display-name geneav-app          # skip if it exists
-APP_ID=$(az ad app list --all --display-name geneav-app --query '[0].appId' -o tsv)
-az ad sp create --id "$APP_ID"                      # errors harmlessly if present
-
-# 2. trust GitHub Actions on main (no secret involved; already created as geneav-main)
-#
-# The subject must match EXACTLY what GitHub sends, which is derived from the
-# repository's real name — `sanaloha/geneav-az`, not `sanaloha/geneav`. A
-# mismatch fails at the OIDC token exchange with AADSTS70021 ("No matching
-# federated identity record found"), which reads like a credentials problem
-# rather than a name problem. Verify against the remote:
-#   git remote get-url origin
-az ad app federated-credential create --id "$APP_ID" --parameters '{
-  "name": "geneav-main",
-  "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:sanaloha/geneav-az:ref:refs/heads/main",
-  "audiences": ["api://AzureADTokenExchange"]
-}'
-
-# If the credential already exists with the wrong subject, UPDATE it — creating
-# a second one with the same name fails, and the stale record keeps rejecting.
-# Pass the WHOLE object: update replaces the record, so omitting issuer or
-# audiences blanks them.
-#   CRED=$(az ad app federated-credential list --id "$APP_ID" \
-#            --query "[?name=='geneav-main'].id" -o tsv)
-#   az ad app federated-credential update --id "$APP_ID" --federated-credential-id "$CRED" \
-#     --parameters '{"name":"geneav-main",
-#                    "issuer":"https://token.actions.githubusercontent.com",
-#                    "subject":"repo:sanaloha/geneav-az:ref:refs/heads/main",
-#                    "audiences":["api://AzureADTokenExchange"]}'
-
-# 3. least privilege: run commands on the one VM, nothing else
-SUB=$(az account show --query id -o tsv)
-az role assignment create --assignee "$APP_ID" \
-  --role "Virtual Machine Contributor" \
-  --scope "/subscriptions/$SUB/resourceGroups/GENEAV-RG/providers/Microsoft.Compute/virtualMachines/geneav-vm"
+aws iam get-role --role-name geneav-ci \
+  --query 'Role.AssumeRolePolicyDocument.Statement[0].Condition' 
+aws iam list-role-policies --role-name geneav-ci
+aws ecr describe-repositories --query 'repositories[].repositoryName'
 ```
 
 Then add these under **Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 |---|---|
-| `AZURE_CLIENT_ID` | `$APP_ID` from step 1 |
-| `AZURE_TENANT_ID` | `az account show --query tenantId -o tsv` |
-| `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv` |
-| `ACR_TOKEN_PASSWORD` | password from the `geneav-ci-push` token |
+| `AWS_ROLE_ARN` | `arn:aws:iam::<acct>:role/geneav-ci` |
 
 | Variable | Value | Why a variable, not a secret |
 |---|---|---|
-| `ACR_REGISTRY` | `geneavacr.azurecr.io` | Not sensitive |
-| `ACR_TOKEN_USER` | `geneav-ci-push` | Not sensitive |
+| `AWS_REGION` | `us-east-1` | Not sensitive |
+| `ECR_REGISTRY` | `<acct>.dkr.ecr.us-east-1.amazonaws.com` | Not sensitive |
+| `GENEAV_SSM_NODE` | the `mi-...` managed node id | Not sensitive on its own; useless without IAM |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://geneav.com` | Baked into the browser bundle |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | the Umami site id | Baked into the browser bundle |
 | `NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED` | `true` once Entra login is live | Baked into the browser bundle |
 
-> The `NEXT_PUBLIC_*` values used to live in `.env.prod` on the VM. They are
+> The `NEXT_PUBLIC_*` values used to live in `.env.prod` on the box. They are
 > inlined when the **image** is built, so now that CI builds the images they
-> must be set here — setting them on the VM has no effect. None are secrets;
+> must be set here — setting them on the box has no effect. None are secrets;
 > they are served to every visitor.
 
-The old `SSH_HOST` / `SSH_USER` / `SSH_KEY` secrets are no longer used and can
-be deleted.
+The old `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` /
+`ACR_TOKEN_PASSWORD` secrets, the `ACR_REGISTRY` / `ACR_TOKEN_USER` variables,
+and the long-unused `SSH_HOST` / `SSH_USER` / `SSH_KEY` secrets are no longer
+read by anything and should be deleted.
+
+### Backups
+
+The `postgres-backup` sidecar dumps both databases nightly (`pg_dump -Fc`) to a
+local Docker volume **and** copies each dump to S3. The local copy is the fast
+restore path; the S3 copy is the one that survives losing the instance, which the
+local copy explicitly does not. The IAM user behind the upload can only
+`s3:PutObject` — it cannot list, read or delete — so a compromised box cannot
+shred the backups it has already written.
+
+Retention is **14 days** in both places, which is what
+[the privacy policy](frontend/app/privacy/page.tsx) promises users about deleted
+records lingering in backups. Do not raise one without the other.
+
+Restoring is `pg_restore`; verify it against a scratch Postgres occasionally,
+because an untested backup is not a backup.
 
 ## Status vs. GN-1
 

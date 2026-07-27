@@ -106,14 +106,15 @@ exist. *(Flagged previously in [`business-case.md`](business-case.md) §6.)*
 
 ### 3.3 International transfers
 
-Processing happens in **Azure East US** ([`azure-provision.sh:10-15`](../azure-provision.sh)). An EU
-customer sending files to geneav is exporting personal data to the United States, so a transfer
+Processing happens in **AWS us-east-1 (N. Virginia)** ([`aws-provision.sh`](../aws-provision.sh)). An
+EU customer sending files to geneav is exporting personal data to the United States, so a transfer
 mechanism is required. The practical route is to annex **standard contractual clauses** to your DPA and
-document that Microsoft Azure is certified under the EU–US Data Privacy Framework. **⚖️ counsel.**
+document that Amazon Web Services is certified under the EU–US Data Privacy Framework. **⚖️ counsel.**
 
-Note the commercial angle: a **West Europe VM (~$87/month, the same as today's)** would let you offer EU
-data residency and sidestep the transfer question for EU customers entirely. That was already flagged as
-a market-access gap in [`business-case.md`](business-case.md) §5 — GDPR strengthens the case.
+Note the commercial angle: a **second instance in `eu-west-1` (~$28/month, the same as today's)**
+would let you offer EU data residency and sidestep the transfer question for EU customers entirely.
+That was already flagged as a market-access gap in [`business-case.md`](business-case.md) §5 — GDPR
+strengthens the case, and the rehost to Lightsail made it about three times cheaper to act on.
 
 ### 3.4 Documentation to produce
 
