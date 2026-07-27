@@ -19,7 +19,11 @@ export type Post = {
   description: string;
   /** ISO date. Drives sort order and the <time> element. */
   date: string;
-  /** Rounded from a ~220 wpm read. Honest estimate, not a growth lever. */
+  /**
+   * Word count at ~220 wpm, rounded up to allow for tables and code blocks,
+   * which nobody reads at prose speed. Honest estimate, not a growth lever —
+   * recount when a post's body changes rather than leaving it flattering.
+   */
   readingMinutes: number;
   tag: string;
 };
@@ -32,7 +36,7 @@ export const posts = [
       "The engine is free; the scanning service around it is not. A full cost model — the VM, the " +
       "integration build, and the operations time — with every assumption stated.",
     date: "2026-07-26",
-    readingMinutes: 8,
+    readingMinutes: 6,
     tag: "Economics",
   },
   {
@@ -42,7 +46,7 @@ export const posts = [
       "Endpoint antivirus protects devices. A file arriving at a cloud API never touches one — " +
       "which means most upload pipelines are an AV coverage gap by construction.",
     date: "2026-07-26",
-    readingMinutes: 6,
+    readingMinutes: 4,
     tag: "Architecture",
   },
 ] as const satisfies readonly Post[];

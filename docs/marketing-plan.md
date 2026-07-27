@@ -113,10 +113,11 @@ instance.
   banner is required. Most competitors cannot say this."* A Google Analytics tag would destroy a
   stated differentiator to gain nothing.
 - **Zero marginal cost.** Postgres is already running.
-- **Caveat.** The B2ms has 8 GiB with `clamd` holding ~1.5–2 GB resident, and throughput has never
-  been benchmarked ([`business-case.md`](business-case.md) §5.6). Umami is light, but it is one more
-  thing on an unmeasured box. If that reads as too risky, Cloudflare Web Analytics is free and
-  cookieless with zero VM footprint — at the cost of putting the site behind Cloudflare.
+- **Caveat — largely resolved 26 July 2026.** This originally warned that `clamd` holds ~1.5–2 GB
+  resident on an 8 GiB box that had never been benchmarked. Measurement since: `clamd` is **974 MB**,
+  and the whole stack **with Umami running** is **~2.0 GB of 7.8 GB**. Umami itself is ~250 MB. The
+  memory risk was roughly half what this section assumed. Throughput is still the open question
+  ([`business-case.md`](business-case.md) §5.6).
 
 **Measure from day one:** unique visitors by source, `/developers` visits (highest-intent page),
 anonymous scans run through [`ScanForm`](../frontend/app/components/ScanForm.tsx), signups, and

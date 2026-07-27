@@ -138,7 +138,9 @@ export default function Privacy() {
             We keep your account data, API keys, and usage records for as long as your account is
             active. Password-reset links are short-lived and expire automatically. Scanned file
             contents are not retained at all. When you close your account we delete your account
-            data; some records may persist briefly in backups before they age out.
+            data; because the database is backed up nightly and those backups are kept for{" "}
+            <strong>14 days</strong>, a copy of your record can persist in a backup for up to that
+            long before it ages out.
           </p>
         </Card>
 

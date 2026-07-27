@@ -4,6 +4,16 @@ services:
     container_name: geneav-clamav
     ports:
       - "3310:3310"
+    environment:
+      # The image writes CLAMD_CONF_<Setting> env vars into clamd.conf at startup,
+      # which is why this is not a mounted config file.
+      #
+      # Concurrent reload is ON by default: when freshclam pulls new signatures,
+      # clamd loads the new database while the old one is still resident, which
+      # transiently DOUBLES its memory. Turning it off trades a brief pause in
+      # scanning during a reload for not being OOM-killed by a routine signature
+      # update — the right trade on a single box with no failover.
+      CLAMD_CONF_ConcurrentDatabaseReload: "no"
     healthcheck:
       # clamdcheck.sh ships in the image and pings clamd
       test: ["CMD", "clamdcheck.sh"]
@@ -60,6 +70,17 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # Throttling knobs. application.yml already reads these; exposing them here
+      # makes capacity work possible without rebuilding the image.
+      #
+      # ENABLED=false turns off the per-IP token bucket ONLY. The global
+      # scan-max-concurrent semaphore is separate and stays on, which is what
+      # scripts/benchmark-scan.sh needs: measure the scanner, not the limiter.
+      # Never set false in production — it is the abuse control.
+      GENEAV_RATELIMIT_ENABLED: ${GENEAV_RATELIMIT_ENABLED:-true}
+      # Global cap on simultaneous scans, protecting ClamAV's memory footprint.
+      # Raising it without re-running the benchmark is guessing.
+      GENEAV_RATELIMIT_SCAN_CONCURRENCY: ${GENEAV_RATELIMIT_SCAN_CONCURRENCY:-4}
     depends_on:
       clamav:
         condition: service_healthy
