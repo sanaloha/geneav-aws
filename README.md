@@ -314,8 +314,8 @@ the problem that killed the SSH approach: GitHub-hosted runners have dynamic
 egress IPs and cannot be allow-listed.
 
 **Images are built in CI and pulled from ECR** — the box compiles nothing. CI
-builds `geneav-backend` and `geneav-frontend` tagged with the commit SHA, pushes
-them to `<acct>.dkr.ecr.us-east-1.amazonaws.com`, and
+builds `geneav-backend`, `geneav-frontend` and `geneav-caddy` tagged with the
+commit SHA, pushes them to `<acct>.dkr.ecr.us-east-1.amazonaws.com`, and
 `scripts/deploy-lightsail.sh` tells the box to pull that tag and restart. The ECR
 repositories use **immutable tags**, so a SHA cannot later be repointed at
 different bytes, and a lifecycle policy keeps only the newest 5 images.
@@ -329,7 +329,7 @@ different bytes, and a lifecycle policy keeps only the newest 5 images.
 > be truncated.
 
 **Credentials are split by direction.** CI assumes an IAM role that can push; the
-box uses its SSM node role, which is scoped **pull-only** to the two
+box uses its SSM node role, which is scoped **pull-only** to the three
 repositories — so a compromise of the box cannot push a poisoned image. Neither
 is an admin credential, and both are revocable independently.
 

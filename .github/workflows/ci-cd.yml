@@ -100,6 +100,20 @@ jobs:
             -t "${{ vars.ECR_REGISTRY }}/geneav-frontend:$GITHUB_SHA" ./frontend
           docker push "${{ vars.ECR_REGISTRY }}/geneav-frontend:$GITHUB_SHA"
 
+      # Caddy needs a custom image because the per-IP rate-limit handler is a
+      # plugin compiled into the binary (caddy/Dockerfile). It is built here for
+      # the same reason as the other two: the deploy is `up --no-build`, so a
+      # `build:` in the compose file could only work on a box that had already
+      # built it once — never on a freshly provisioned instance.
+      #
+      # Tagged with the SHA like the others even though caddy/ rarely changes, so
+      # that one tag identifies the whole stack and a rollback moves all three
+      # together. The xcaddy compile adds a couple of minutes per push.
+      - name: Build & push caddy
+        run: |
+          docker build -t "${{ vars.ECR_REGISTRY }}/geneav-caddy:$GITHUB_SHA" ./caddy
+          docker push "${{ vars.ECR_REGISTRY }}/geneav-caddy:$GITHUB_SHA"
+
   # ----------------------------------------------------------------- deploy
   # Ships the commit to the Lightsail box through AWS Systems Manager Run
   # Command.

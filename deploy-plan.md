@@ -102,8 +102,11 @@ All of this is scripted in [`aws-provision.sh`](./aws-provision.sh).
   if left dangling. DNS depends on it, so it must not change.
 - **DNS:** A records for `geneav.com`, `www` and `analytics` at the static IP. For staging
   a fresh box before cutover, use `geneav.<ip-with-dashes>.nip.io` — no records needed.
-- **Registry:** two ECR repositories with **immutable tags** and a lifecycle policy keeping
-  the newest 5 images (~$0.30/month, versus $5 for ACR Basic).
+- **Registry:** three ECR repositories — backend, frontend and caddy — with **immutable
+  tags** and a lifecycle policy keeping the newest 5 images (~$0.30/month, versus $5 for
+  ACR Basic). Caddy is in the registry rather than built on the box because the deploy is
+  `up --no-build`: a `build:` for it would only ever have worked on a box that had already
+  built it once, which a freshly provisioned instance has not.
 - **Identity:** GitHub OIDC → `geneav-ci` role (ECR push + SSM SendCommand, pinned to
   `repo:sanaloha/geneav-aws:ref:refs/heads/main`); an SSM hybrid activation binding the box
   to `geneav-ssm-instance` (SSM core + **pull-only** ECR).
@@ -182,7 +185,7 @@ degrades rather than corrupts. It is not a substitute for being up.
 | Hardened `Dockerfile`s       | Non-root user, heap caps, pinned bases              |
 | `.env.prod.example`          | Documented prod environment variables               |
 | `.github/workflows/ci-cd.yml`| CI (build/test) + CD (ECR push, SSM deploy)        |
-| `aws-provision.sh`           | Lightsail, ECR, IAM/OIDC, SSM activation, S3 bucket |
+| `aws-provision.sh`           | Lightsail, ECR ×3, IAM/OIDC, SSM activation, S3 bucket |
 | `scripts/deploy-lightsail.sh`| Pull-and-restart deploy with health-check rollback  |
 
 ## Risks / watch-items

@@ -6,8 +6,15 @@
 }
 
 # Canonicalize www -> apex.
-www.geneav.com {
-	redir https://geneav.com{uri} permanent
+#
+# The hostname is derived from GENEAV_HOST by docker-compose.prod.yml rather than
+# hardcoded. A hardcoded www.geneav.com made this block wrong in exactly the
+# situation it most needed to be right: staging a fresh box on nip.io, where
+# geneav.com still points at the previous host. Caddy would try to obtain a
+# certificate for a name that does not resolve here, and the redirect would send
+# staging traffic to production.
+{$GENEAV_WWW_HOST:www.geneav.com} {
+	redir https://{$GENEAV_HOST}{uri} permanent
 }
 
 # Self-hosted analytics, on its own subdomain.
@@ -18,9 +25,10 @@ www.geneav.com {
 # runtime. Under the apex that endpoint would collide with the scan API, which
 # owns /api/*. A subdomain gives it a root of its own and needs no custom image.
 #
-# Hardcoded rather than derived from GENEAV_HOST, matching the www block above.
-# Caddy obtains its certificate automatically on first request.
-analytics.geneav.com {
+# Derived from GENEAV_HOST, like the www block above, so a staging run on nip.io
+# gets a name that actually resolves to this box. Caddy obtains its certificate
+# automatically on first request.
+{$GENEAV_ANALYTICS_HOST:analytics.geneav.com} {
 	encode gzip
 	reverse_proxy umami:3000
 }

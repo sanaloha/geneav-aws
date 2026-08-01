@@ -595,7 +595,7 @@ sellable. In priority order, as candidate issues under epic GN-3:
 | Engine | `clamav/clamav:1.4`, healthcheck with 120 s start period |
 | Proxy | Caddy 2 (custom build with `caddy-ratelimit`), automatic Let's Encrypt |
 | Host | Single **AWS Lightsail** instance, `medium_3_0` (4 GB / 2 vCPU / 80 GB SSD), us-east-1. Firewall: 80/443 only, **no port 22** |
-| Registry | **Amazon ECR**, two repositories with immutable tags and a keep-newest-5 lifecycle policy — CI pushes SHA-tagged images; the box pulls with a pull-only SSM node role |
+| Registry | **Amazon ECR**, three repositories (backend, frontend, caddy) with immutable tags and a keep-newest-5 lifecycle policy — CI pushes SHA-tagged images; the box pulls with a pull-only SSM node role |
 | Analytics | Self-hosted Umami on `analytics.geneav.com`, cookieless, no visitor data leaves the box |
 | Backups | Nightly `pg_dump -Fc` of both databases to a local volume and to S3, 14-day retention in both; the uploading IAM user can only `s3:PutObject` |
 | CI/CD | GitHub Actions — `mvn test` + `next build`, deploy on push to `main` via **GitHub OIDC → IAM role** and **SSM Run Command** (no inbound SSH), with automatic rollback on a failed health check |

@@ -13,10 +13,14 @@
 # built in CI, pushed to ECR, and pulled here — the payload is a few KB
 # regardless of repo size.
 #
-# Only four files are sent: the two compose files and the two Caddy files. They
-# are configuration the box must have on disk, and they are small. Keep it that
-# way — SSM's parameter ceiling is ~100 KB, TIGHTER than the Azure one that
-# caused the original problem, so the guard below is not decorative.
+# Only three files are sent: the two compose files and the Caddyfile. They are
+# configuration the box must have on disk, and they are small. Keep it that way
+# — SSM's parameter ceiling is ~100 KB, TIGHTER than the Azure one that caused
+# the original problem, so the guard below is not decorative.
+#
+# caddy/Dockerfile is no longer among them: the reverse proxy image is built in
+# CI and pulled like the other two, so the box has no reason to hold a build
+# context it will never use.
 #
 # Requires: aws CLI v2, already authenticated (configure-aws-credentials in CI,
 # `aws configure`/SSO locally), and python3 for JSON encoding. Runs on Linux or
@@ -44,7 +48,7 @@ echo "==> deploying $SHA from $REGISTRY to $NODE"
 # Config the box needs on disk. Kept deliberately small — this is the only thing
 # still travelling inline, and it must never grow into a size problem again.
 CONFIG_B64="$(tar -czf - \
-  docker-compose.yml docker-compose.prod.yml caddy/Caddyfile caddy/Dockerfile \
+  docker-compose.yml docker-compose.prod.yml caddy/Caddyfile \
   | base64 -w0)"
 
 # The remote script runs under dash (AWS-RunShellScript uses /bin/sh), NOT bash.
@@ -72,7 +76,7 @@ echo "=== refresh config ==="
 # Config is replaced in place; there is no source tree to swap. Keep a copy so a
 # failed deploy can put the old config back.
 rm -rf "$D/.config-prev" && mkdir -p "$D/.config-prev"
-for f in docker-compose.yml docker-compose.prod.yml caddy/Caddyfile caddy/Dockerfile; do
+for f in docker-compose.yml docker-compose.prod.yml caddy/Caddyfile; do
   if [ -f "$D/$f" ]; then
     mkdir -p "$D/.config-prev/$(dirname "$f")"
     cp "$D/$f" "$D/.config-prev/$f"
@@ -83,7 +87,7 @@ printf '%s' "$CONFIG_B64" | base64 -d | tar -xzf - -C "$D"
 echo "=== login + pull ==="
 # Preferred path: this box is an SSM hybrid managed node, so the agent keeps
 # refreshed credentials for its activation role on disk and no registry key is
-# stored here at all. The role is scoped to pull-only on these two repositories,
+# stored here at all. The role is scoped to pull-only on the three repositories,
 # so even a full compromise of the box cannot push a poisoned image.
 #
 # Fallback: an explicit pull-only IAM user key in .env.prod, for the case where
@@ -106,7 +110,7 @@ export GENEAV_IMAGE_TAG="$SHA"
 export GENEAV_REGISTRY="$REGISTRY"
 COMPOSE="docker compose --env-file $D/.env.prod -f docker-compose.yml -f docker-compose.prod.yml"
 
-if ! $COMPOSE pull backend frontend; then
+if ! $COMPOSE pull backend frontend caddy; then
   echo "PULL_FAILED - images for $SHA are not in the registry; nothing changed"
   cp -r "$D/.config-prev/." "$D/" 2>/dev/null || true
   exit 1
