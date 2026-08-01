@@ -137,6 +137,26 @@ All of this is scripted in [`aws-provision.sh`](./aws-provision.sh).
   `scripts/deploy-lightsail.sh` tells the box (via SSM) to pull the SHA-tagged images and
   restart, rolling back if the pull, the start or the health check fails.
 
+### The AWS box starts from an empty database — decided 1 August 2026
+
+**The Azure Postgres is not migrated.** Cutover is a DNS change, not a dump-and-restore,
+and there is no freeze window.
+
+What that costs, stated plainly so it is not rediscovered at cutover: **every account, API
+key and usage counter on the Azure box is gone.** Anyone holding a live API key gets a 401
+the moment DNS moves, and users must sign up again. Umami analytics history does not come
+across either, and Umami issues a **new website id** that has to go into the
+`NEXT_PUBLIC_UMAMI_WEBSITE_ID` repository variable — it is baked into the frontend bundle
+at build time, so picking it up needs a rebuild, not a restart (`.env.prod.example`).
+
+What makes it survivable: the Marketplace offer is **not published**, so there are no paid
+entitlements and no subscription state to lose. Doing this after the offer goes live would
+be a different decision entirely — it would strand paying customers.
+
+Nothing in the app needs seeding. Flyway owns the schema (`V1__init` … `V6__marketplace`,
+with `ddl-auto: validate`), so an empty database provisions itself on first boot, and there
+is no admin account or seed data to recreate — signup is entirely self-service.
+
 ## Phase 4 — Operations
 
 - **CI/CD:** GitHub Actions — build + test on PR; on merge to `main`, build images, push to
