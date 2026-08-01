@@ -101,11 +101,25 @@ risks in [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
 - [x] `POST /api/v1/scan` returns a JSON verdict; `GET /api/v1/health` returns status
 - [x] Oversized/unsupported files return documented errors
 - [x] API documented via OpenAPI/Swagger
-- [ ] Website live (runs locally; not yet deployed)
-- [ ] End-to-end scan verified against a real ClamAV (EICAR)
+- [x] Website live (`geneav.com`; moving from Azure to AWS Lightsail)
+- [x] End-to-end scan verified against a real ClamAV (EICAR)
 
 ## Open items / next actions
 
-1. Install and start Docker, then `docker compose up --build` to run the full stack.
-2. Verify EICAR detection end-to-end via `POST /api/v1/scan`.
-3. Choose hosting and deploy frontend + backend + ClamAV.
+The three items that used to sit here (run the stack, verify EICAR, choose hosting) are
+done — see the status table above. What remains is the move off Azure and the Marketplace
+offer.
+
+1. **Merge the first-deploy fixes** ([#2](https://github.com/sanaloha/geneav-aws/pull/2)) —
+   Caddy is pulled from ECR rather than built on a box that has never built it, and its
+   hostnames derive from `GENEAV_HOST` so a staging run does not drag `geneav.com` in.
+2. **Provision AWS** — `./aws-provision.sh`, then set the GitHub secrets/variables and put
+   `.env.prod` on the box through SSM Session Manager (port 22 is closed; there is no SSH).
+3. **Stage on `nip.io`**, verify end to end, then cut `geneav.com` DNS to the Lightsail
+   static IP. **The AWS box starts from an empty database** — accounts, API keys and
+   analytics history do not come across (`deploy-plan.md`).
+4. **Configure uptime monitoring** on `/api/v1/health` and the webhook path. This is a
+   prerequisite for publishing the Marketplace offer, not a nice-to-have — availability
+   became contractual once billing was involved.
+5. **Finish the Partner Center work** — payout/tax profiles, app registrations, listing
+   assets, certification ([`docs/marketplace-plan.md`](docs/marketplace-plan.md)).

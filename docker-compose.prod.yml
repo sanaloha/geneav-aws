@@ -9,8 +9,16 @@
 
 services:
   # TLS-terminating reverse proxy. Only this service faces the internet.
+  #
+  # PULLED, NOT BUILT — same as the two app images, and for a sharper reason. The
+  # deploy runs `up -d --no-build`, so a `build:` here could only ever work on a
+  # box that had already built the image once. On a freshly provisioned instance
+  # there is nothing to run and the first deploy fails on this service. Caddy
+  # needs a custom image at all because of the rate-limit plugin (caddy/Dockerfile),
+  # so "just use the upstream image" is not an option.
   caddy:
-    build: ./caddy
+    image: ${GENEAV_REGISTRY:?set GENEAV_REGISTRY (the ECR registry host)}/geneav-caddy:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}
+    pull_policy: always
     container_name: geneav-caddy
     restart: unless-stopped
     ports:
@@ -18,6 +26,17 @@ services:
       - "443:443"  # HTTPS
     environment:
       GENEAV_HOST: ${GENEAV_HOST:?set GENEAV_HOST in .env.prod (e.g. geneav.20-1-2-3.nip.io)}
+      # Derived from GENEAV_HOST so they follow it automatically. This matters
+      # during a nip.io staging run: these two names used to be hardcoded to
+      # geneav.com, which still resolves to the OLD box, so Caddy would sit in an
+      # ACME retry loop for certificates it could never obtain — burning Let's
+      # Encrypt failure quota against the real domain before cutover. Derived,
+      # they become www.geneav.<ip>.nip.io / analytics.geneav.<ip>.nip.io, which
+      # nip.io resolves to this box (it accepts any prefix), so both certificates
+      # are issued normally. Override either one explicitly if the real layout
+      # ever stops being "www." and "analytics." in front of the apex.
+      GENEAV_WWW_HOST: ${GENEAV_WWW_HOST:-www.${GENEAV_HOST}}
+      GENEAV_ANALYTICS_HOST: ${GENEAV_ANALYTICS_HOST:-analytics.${GENEAV_HOST}}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data       # persists issued TLS certificates across restarts

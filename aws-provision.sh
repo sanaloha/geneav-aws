@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Provision the AWS side of the geneav stack: one Lightsail instance, two ECR
+# Provision the AWS side of the geneav stack: one Lightsail instance, three ECR
 # repositories, the IAM identities CI and the box need, and an S3 bucket for
 # off-box database backups.
 #
@@ -91,7 +91,10 @@ echo "==> account $ACCOUNT_ID, region $REGION"
 # IMMUTABLE tags: a deploy is a pull of a known artifact and a rollback is
 # re-pointing at the previous commit SHA. That only holds if a tag cannot be
 # quietly repointed at different bytes.
-for repo in geneav-backend geneav-frontend; do
+# geneav-caddy is here because the reverse proxy needs a custom image (the
+# rate-limit plugin is compiled in), and the box builds nothing — see the note in
+# docker-compose.prod.yml.
+for repo in geneav-backend geneav-frontend geneav-caddy; do
   if aws_ ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
     echo "==> ECR repo $repo already exists"
   else
@@ -190,7 +193,7 @@ else
 fi
 
 # ecr:GetAuthorizationToken cannot be resource-scoped — it is account-wide by
-# design. Everything that actually moves bytes is scoped to the two repos.
+# design. Everything that actually moves bytes is scoped to the three repos.
 #
 # The SSM instance ARN is a wildcard because the managed-node id (mi-…) does not
 # exist until the agent registers, which happens after this script runs. Once
@@ -208,7 +211,8 @@ CI_POLICY=$(cat <<JSON
       ],
       "Resource": [
         "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-backend",
-        "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-frontend"
+        "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-frontend",
+        "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-caddy"
       ] },
     { "Sid": "SsmDeploy", "Effect": "Allow", "Action": "ssm:SendCommand",
       "Resource": [
@@ -242,8 +246,9 @@ fi
 run aws iam attach-role-policy --role-name "$SSM_ROLE" \
   --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
-# PULL ONLY. The box never needs to write to the registry, and a pull-only
-# credential means a compromise of it cannot push a poisoned image.
+# PULL ONLY, all three repositories. The box never needs to write to the
+# registry, and a pull-only credential means a compromise of it cannot push a
+# poisoned image.
 SSM_ECR_POLICY=$(cat <<JSON
 {
   "Version": "2012-10-17",
@@ -253,7 +258,8 @@ SSM_ECR_POLICY=$(cat <<JSON
       "Action": ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:BatchCheckLayerAvailability"],
       "Resource": [
         "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-backend",
-        "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-frontend"
+        "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-frontend",
+        "arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/geneav-caddy"
       ] }
   ]
 }
