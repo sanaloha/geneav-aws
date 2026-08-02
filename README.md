@@ -320,6 +320,32 @@ commit SHA, pushes them to `<acct>.dkr.ecr.us-east-1.amazonaws.com`, and
 repositories use **immutable tags**, so a SHA cannot later be repointed at
 different bytes, and a lifecycle policy keeps only the newest 5 images.
 
+### Changing the hostname requires a rebuild, not a redeploy
+
+`aws.geneav.com` is the staging host on the Lightsail box; `geneav.com` is
+served separately. Three A records point at the static IP — the apex plus
+`www.` and `analytics.`, because `docker-compose.prod.yml` derives those two
+from `GENEAV_HOST` and Caddy requests a certificate for each.
+
+Moving to a new hostname is **two** changes, and doing only the first breaks the
+site in a way that looks like it worked:
+
+1. Repository variable `NEXT_PUBLIC_API_BASE_URL`, then **rebuild**. Next.js
+   inlines `NEXT_PUBLIC_*` into the client bundle at image build time, and
+   `API_BASE` is what Nav, Dashboard, ScanForm, ResetPassword, ChatWidget and
+   `/developers` call. A container restart cannot pick it up.
+2. `GENEAV_HOST` in `.env.prod` on the box, then redeploy. This drives Caddy's
+   site blocks, the CORS allow-list and the password-reset links.
+
+Do only (2) and the page loads while every API call goes to the old hostname —
+which Caddy is no longer serving. Do them in either order, but **land both in
+the same deploy**.
+
+Because tags are immutable and keyed on the commit SHA, a rebuild needs a **new
+commit**: re-running a workflow for an already-built SHA fails on the push. Do
+not delete the images to force it — a SHA that no longer means the same bytes
+makes the box's `.deployed-sha` misleading.
+
 > Until July 2026 the deploy base64'd the whole source tree into the remote
 > script and the box rebuilt both images. That ended when the payload hit
 > ~199 KB and the control plane silently truncated it. Building in CI also stops
