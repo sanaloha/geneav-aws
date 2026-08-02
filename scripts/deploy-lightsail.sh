@@ -145,9 +145,26 @@ echo "=== health ==="
 # 8080 is published on 127.0.0.1 ONLY (see docker-compose.prod.yml) — bound to
 # the loopback so it is unreachable from off-box regardless of firewall state,
 # but still curl-able from here without going through Caddy and TLS.
+#
+# The budget depends on whether this is a first deploy. backend waits on
+# `clamav: service_healthy`, and on a COLD box clamd must download the whole
+# signature database before it answers — the compose healthcheck allows a 120s
+# start period plus 5x30s of retries for exactly that reason. A flat 150s poll
+# (inherited from the Azure script, where the box was always warm) times out
+# while the stack is still legitimately starting.
+#
+# A first deploy has no previous SHA to roll back to, so patience costs nothing.
+# A redeploy keeps the tighter budget, because there the whole point is to revert
+# a bad release quickly.
+if [ "$PREV" = "none" ]; then
+  ATTEMPTS=120   # 10 min — cold start, includes the signature download
+  echo "first deploy on this box: allowing 10 min for the ClamAV database download"
+else
+  ATTEMPTS=60    # 5 min — warm redeploy, images and signatures already local
+fi
 ok=0
 i=1
-while [ "$i" -le 30 ]; do
+while [ "$i" -le "$ATTEMPTS" ]; do
   if curl -fsS --max-time 5 http://127.0.0.1:8080/api/v1/health >/dev/null 2>&1; then ok=1; break; fi
   sleep 5
   i=$((i + 1))

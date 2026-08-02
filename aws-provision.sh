@@ -49,6 +49,16 @@ REMOTE_DIR="${GENEAV_REMOTE_DIR:-/home/ubuntu/geneav}"
 
 GITHUB_REPO="${GITHUB_REPO:-sanaloha/geneav-aws}"
 GITHUB_REF="${GITHUB_REF_NAME:-main}"
+# GitHub now issues OIDC subjects carrying IMMUTABLE numeric ids:
+#   repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/<branch>
+# rather than the name-only form every tutorial still shows. A trust policy
+# pinned to the old shape silently never matches, and STS reports only
+# "Not authorized to perform sts:AssumeRoleWithWebIdentity" — the actual subject
+# is visible in CloudTrail under userIdentity.userName, which is how this was
+# found on 2 Aug 2026. Looked up automatically when `gh` is available; override
+# here if it is not.
+GITHUB_OWNER_ID="${GITHUB_OWNER_ID:-}"
+GITHUB_REPO_ID="${GITHUB_REPO_ID:-}"
 
 CI_ROLE="${CI_ROLE:-geneav-ci}"
 SSM_ROLE="${SSM_ROLE:-geneav-ssm-instance}"
@@ -219,8 +229,34 @@ else
    
 fi
 
+# Resolve the numeric ids so the immutable subject form can be pinned. They are
+# public repository metadata, not secrets.
+if [ -z "$GITHUB_OWNER_ID" ] || [ -z "$GITHUB_REPO_ID" ]; then
+  if command -v gh >/dev/null 2>&1; then
+    GITHUB_OWNER_ID="${GITHUB_OWNER_ID:-$(gh api "repos/${GITHUB_REPO}" --jq .owner.id 2>/dev/null || true)}"
+    GITHUB_REPO_ID="${GITHUB_REPO_ID:-$(gh api "repos/${GITHUB_REPO}" --jq .id 2>/dev/null || true)}"
+  fi
+fi
+
 # `sub` is pinned to one repo AND one ref. A wildcard here would let any branch
 # — including one from a fork's PR — push images and run commands on the box.
+#
+# BOTH subject shapes are listed because GitHub is mid-migration and a StringEquals
+# list matches if ANY entry does. Neither entry contains a wildcard, so the pin to
+# this repo and this branch holds either way. The id-bearing form is the stronger
+# of the two: delete this repo and recreate it under the same name and the ids
+# differ, so the old trust no longer applies.
+if [ -n "$GITHUB_OWNER_ID" ] && [ -n "$GITHUB_REPO_ID" ]; then
+  SUB_LIST="\"repo:${GITHUB_REPO%%/*}@${GITHUB_OWNER_ID}/${GITHUB_REPO#*/}@${GITHUB_REPO_ID}:ref:refs/heads/${GITHUB_REF}\",
+        \"repo:${GITHUB_REPO}:ref:refs/heads/${GITHUB_REF}\""
+else
+  echo "==> WARNING: could not resolve GitHub owner/repo ids (gh not installed or"
+  echo "    not authenticated). Falling back to the name-only OIDC subject, which"
+  echo "    GitHub may no longer send — CI would then fail with AccessDenied on"
+  echo "    sts:AssumeRoleWithWebIdentity. Set GITHUB_OWNER_ID / GITHUB_REPO_ID."
+  SUB_LIST="\"repo:${GITHUB_REPO}:ref:refs/heads/${GITHUB_REF}\""
+fi
+
 CI_TRUST=$(cat <<JSON
 {
   "Version": "2012-10-17",
@@ -231,7 +267,9 @@ CI_TRUST=$(cat <<JSON
     "Condition": {
       "StringEquals": {
         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        "token.actions.githubusercontent.com:sub": "repo:${GITHUB_REPO}:ref:refs/heads/${GITHUB_REF}"
+        "token.actions.githubusercontent.com:sub": [
+        $SUB_LIST
+        ]
       }
     }
   }]
