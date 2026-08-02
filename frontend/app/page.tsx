@@ -91,9 +91,9 @@ const features = [
 
 // Quotas and rates here must match `geneav.plans.definitions` in the backend's
 // application.yml — that config is what actually meters and throttles.
-// Paid plans are sold through the Microsoft Azure Marketplace (Microsoft is
-// the merchant of record); the CTAs link to the listing via /marketplace.
-// Marketplace plan ids map to these tiers in `geneav.marketplace.plan-map`.
+// Paid plans have no self-serve purchase channel on this build, so their CTAs
+// open email rather than a checkout. Do not advertise a purchase flow the site
+// cannot complete — same house rule as every other claim on this page.
 
 // The free quota appears twice on this page: in the pricing card and under the
 // hero CTA. It is defined once here because those two drifted apart when the
@@ -118,16 +118,24 @@ const plans = [
     name: "Starter",
     price: "$19",
     period: "/month",
-    note: "Via Azure Marketplace",
-    cta: { label: "Get on Azure Marketplace", href: "/marketplace", variant: "secondary" as const },
+    note: "Contact us to subscribe",
+    cta: {
+      label: "Contact us",
+      href: "mailto:admin@geneav.com?subject=geneav%20Starter%20plan",
+      variant: "secondary" as const,
+    },
     limits: ["10,000 scans per month", "30 requests per minute", "Everything in Free"],
   },
   {
     name: "Pro",
     price: "$39",
     period: "/month",
-    note: "30-day free trial · via Azure Marketplace",
-    cta: { label: "Start free trial", href: "/marketplace", variant: "primary" as const },
+    note: "Contact us to subscribe",
+    cta: {
+      label: "Contact us",
+      href: "mailto:admin@geneav.com?subject=geneav%20Pro%20plan",
+      variant: "primary" as const,
+    },
     limits: [
       "100,000 scans per month",
       "120 requests per minute",
@@ -140,8 +148,12 @@ const plans = [
     name: "Scale",
     price: "$149",
     period: "/month",
-    note: "Via Azure Marketplace",
-    cta: { label: "Get on Azure Marketplace", href: "/marketplace", variant: "secondary" as const },
+    note: "Contact us to subscribe",
+    cta: {
+      label: "Contact us",
+      href: "mailto:admin@geneav.com?subject=geneav%20Scale%20plan",
+      variant: "secondary" as const,
+    },
     limits: [
       "500,000 scans per month",
       "300 requests per minute",

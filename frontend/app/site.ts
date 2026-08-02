@@ -65,16 +65,3 @@ export const ANALYTICS_SCRIPT_URL = (() => {
     return "https://analytics.geneav.com/s.js";
   }
 })();
-
-/**
- * The public Azure Marketplace listing for geneav's paid plans.
- *
- * The canonical form is
- * `https://azuremarketplace.microsoft.com/marketplace/apps/<publisherId>.<offerId>`,
- * but the publisher id does not exist until Partner Center onboarding
- * completes — until then this search URL resolves to the listing once it is
- * live and to an empty search before that. Replace it with the canonical URL
- * as soon as the offer is published.
- */
-export const MARKETPLACE_LISTING_URL =
-  "https://azuremarketplace.microsoft.com/en-us/marketplace/apps?search=geneav";

@@ -18,8 +18,8 @@ export default function WhatItCostsToSelfHostClamAv() {
 
       <Note title="Update, 27 July 2026: we moved hosts, and the infrastructure line fell by 68%">
         <P>
-          The infrastructure figures in this post are our real Azure bill and we have left them
-          exactly as published. Since writing it we measured the box properly, found the whole stack
+          The infrastructure figures in this post are the real bill from our previous host and we
+          have left them exactly as published. Since writing it we measured the box properly, found the whole stack
           resident in <Strong>~2.0 GB of the 7.8 GB we were paying for</Strong>, and could not buy a
           smaller machine in that region — every attempt returned{" "}
           <Code>SkuNotAvailable</Code>. So we moved to a $24/month AWS Lightsail bundle, and the
@@ -59,8 +59,8 @@ export default function WhatItCostsToSelfHostClamAv() {
       <H2>Line one: infrastructure</H2>
 
       <P>
-        This is the line everyone estimates, and it is the smallest of the three. Ours, on Azure in
-        East US, at list price:
+        This is the line everyone estimates, and it is the smallest of the three. Ours, on our
+        previous host in its East US region, at list price:
       </P>
 
       <Table>
@@ -105,8 +105,8 @@ export default function WhatItCostsToSelfHostClamAv() {
       </Table>
 
       <P>
-        The disk figure is approximate — Azure renders managed-disk prices dynamically and you should
-        confirm it in the calculator. It is under 10% of the line and changes no conclusion.
+        The disk figure is approximate — that provider rendered managed-disk prices dynamically and
+        you should confirm it in its calculator. It is under 10% of the line and changes no conclusion.
       </P>
 
       <H3>Why 8 GiB and not 2</H3>
@@ -337,7 +337,8 @@ export default function WhatItCostsToSelfHostClamAv() {
       </P>
 
       <Note title="Where these numbers come from">
-        Infrastructure is our real Azure bill at list price, retrieved 25 July 2026 — see the update
+        Infrastructure is the real bill from our previous host at list price, retrieved 25 July
+        2026 — see the update
         at the top of this post, which explains why our own bill is now lower. Engineering
         figures are a stated model on a $75&ndash;$150/hour fully-loaded senior rate, 2&ndash;4 weeks
         of build and 2&ndash;4 hours a month of operations. Everything about ClamAV&rsquo;s behaviour

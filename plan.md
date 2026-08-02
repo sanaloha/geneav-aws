@@ -70,19 +70,14 @@ clamav     ClamAV daemon (clamd)                 — the detection engine       
 ### 4. Post-v1 (out of scope for GN-1) — mostly shipped
 - ✅ User accounts, authentication, and API keys.
 - ✅ Rate limiting and abuse protection.
-- ✅ **Billing / subscription management — Microsoft Azure Marketplace** (27 July 2026).
-  Microsoft is merchant of record; a verified webhook sets `account.plan` and the existing
-  quota machinery enforces it. Ships **disabled**: with no credentials every marketplace
-  endpoint returns 503 and the site is unchanged. Includes Entra ID sign-in, which
-  Marketplace certification requires and which replaced the never-built Google login.
-  See [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
+- 🚫 **Billing / subscription management — dropped 2 Aug 2026.** The SaaS-fulfillment
+  code shipped 27 July 2026 and still exists in the backend, disabled by default, but the
+  channel is no longer offered: the `/marketplace` pages are deleted and no page advertises
+  a purchase flow. Paid plans are arranged by email until a channel is chosen. Entra ID
+  sign-in stays — it is independent of billing and still the only federated login.
+- ⏳ A purchase channel to replace it. Undecided; the fulfillment contract differs per
+  marketplace, so the existing code is not a head start on most options.
 - ⏳ Additional scan engines behind the `ScanEngine` abstraction.
-
-### 5. Publish the Marketplace offer — ⏳ In progress
-The code is done; the remaining work is account-level and cannot be automated:
-payout and tax profiles (verification-gated — the schedule risk), the two Entra app
-registrations, listing assets, then preview testing and certification. Runbook and
-risks in [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
 
 ## Current status
 
@@ -92,8 +87,7 @@ risks in [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
 | Backend build + tests                            | ✅ 145/145 passing |
 | Backend + ClamAV end-to-end (EICAR)              | ✅ Verified locally |
 | Website deployed / live                          | ✅ Live at geneav.com |
-| Marketplace billing (code)                       | ✅ Shipped, disabled until credentialed |
-| Marketplace offer published                      | ⏳ Partner Center work outstanding |
+| Paid-plan purchase channel                       | 🚫 None — dropped 2 Aug 2026; arranged by email |
 
 ### Acceptance criteria (GN-1)
 - [x] Home page explains the product + CTA
@@ -101,14 +95,14 @@ risks in [`docs/marketplace-plan.md`](docs/marketplace-plan.md).
 - [x] `POST /api/v1/scan` returns a JSON verdict; `GET /api/v1/health` returns status
 - [x] Oversized/unsupported files return documented errors
 - [x] API documented via OpenAPI/Swagger
-- [x] Website live (`geneav.com`; moving from Azure to AWS Lightsail)
+- [x] Website live (`geneav.com`; moving to AWS Lightsail)
 - [x] End-to-end scan verified against a real ClamAV (EICAR)
 
 ## Open items / next actions
 
 The three items that used to sit here (run the stack, verify EICAR, choose hosting) are
-done — see the status table above. What remains is the move off Azure and the Marketplace
-offer.
+done — see the status table above. What remains is finishing the host cutover and picking
+a purchase channel for paid plans.
 
 1. **Merge the first-deploy fixes** ([#2](https://github.com/sanaloha/geneav-aws/pull/2)) —
    Caddy is pulled from ECR rather than built on a box that has never built it, and its

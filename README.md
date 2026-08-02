@@ -25,9 +25,7 @@ client library) and exposes:
 | GET    | `/api/v1/auth/me` | The signed-in account, or 401                 |
 | GET    | `/api/v1/usage`   | Current-month scan usage vs. plan quota (session or key) |
 | GET/POST/DELETE | `/api/v1/keys` | List / create / revoke API keys (session or key) |
-| POST   | `/api/v1/marketplace/resolve` · `/activate` | Azure Marketplace purchase → plan (session) |
-| GET    | `/api/v1/marketplace/subscription` | The account's live marketplace subscription (session) |
-| POST   | `/api/v1/marketplace/webhook` | Microsoft subscription lifecycle events (Entra JWT) |
+| —      | `/api/v1/marketplace/*` | Dormant SaaS-fulfillment endpoints; disabled by default, no UI (see *Billing*) |
 | GET    | `/docs`           | Swagger UI                                     |
 | GET    | `/api-docs`       | OpenAPI JSON                                   |
 
@@ -189,39 +187,21 @@ Response codes: **401** missing/invalid key · **402** monthly quota exhausted �
 in `application.yml` under `geneav.plans` and are env-overridable. Accounts, keys,
 and usage live in **PostgreSQL** (schema managed by Flyway).
 
-## Billing — Microsoft Marketplace
+## Billing — no self-serve channel
 
-Paid plans are sold through the **Microsoft Azure Marketplace**. Microsoft is the
-merchant of record: it collects payment, handles global VAT/sales tax, and bills
-the customer's Azure account. A purchase raises the quota on an ordinary geneav
-account — the scan path is untouched.
+**There is no checkout.** The free tier self-serves; paid tiers are arranged by
+email (`admin@geneav.com`) and set on the account by hand. The site says exactly
+this — pricing CTAs open mail, and no page advertises a purchase flow the build
+cannot complete.
 
-```
-buy on Azure Marketplace
-  → land on /marketplace/landing?token=…      (Partner Center "landing page URL")
-  → sign in with Microsoft (Entra SSO)
-  → POST /api/v1/marketplace/resolve          → exchange token for the purchase
-  → POST /api/v1/marketplace/activate         → Microsoft starts billing
-  → account.plan := the mapped tier, billing_source := 'marketplace'
-```
+The marketplace-fulfillment code under `backend/.../marketplace/` is **dormant,
+not removed**: it speaks the Microsoft SaaS Fulfillment API, is disabled by
+default (`GENEAV_MARKETPLACE_ENABLED=false`, every endpoint 503s without
+credentials), and as of 2 Aug 2026 has no frontend surface at all — the
+`/marketplace` pages were deleted when the channel was dropped from the site.
+Re-enabling it would need those pages rebuilt as well as the credentials.
 
-Afterwards Microsoft POSTs lifecycle events (`Subscribe`, `ChangePlan`, `Renew`,
-`Suspend`, `Reinstate`, `Unsubscribe`) to `/api/v1/marketplace/webhook`. That
-endpoint is public but every call must carry a valid **Entra JWT** — validated
-against `aud` / `tid` / `appid`|`azp` before the body is parsed. It is
-deliberately exempt from `ApiKeyAuthFilter`, `RateLimitFilter`, and the Caddy
-per-IP limit, because Microsoft retries up to 500 times over eight hours from a
-small set of IPs; the JWT, not throttling, is the guard.
-
-Partner Center plan ids map to geneav tiers under `geneav.marketplace.plan-map`
-(`geneav-starter` → `starter`, and so on). An unmapped id changes no plan and
-logs loudly — it must never default to a bigger tier than was paid for.
-
-**Disabled by default.** With no credentials configured every marketplace
-endpoint returns 503 and the site behaves exactly as it does without billing,
-matching the `geneav.mail` / `geneav.openai` convention. Setup steps for Partner
-Center and the two Entra app registrations are in
-[`docs/marketplace-plan.md`](docs/marketplace-plan.md).
+Nothing in the scan, quota, or key path depends on it.
 
 ## Testing with Postman
 
