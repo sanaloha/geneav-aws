@@ -333,9 +333,36 @@ box uses its SSM node role, which is scoped **pull-only** to the three
 repositories — so a compromise of the box cannot push a poisoned image. Neither
 is an admin credential, and both are revocable independently.
 
+### Local configuration: `.env.aws`
+
+Both scripts source a gitignored `.env.aws` at the repo root, so a local run
+needs no exported variables. Create it before provisioning:
+
+```bash
+cat > .env.aws <<'EOF'
+AWS_ACCOUNT_ID=<your 12-digit account id>
+AWS_REGION=us-east-1
+EOF
+```
+
+Everything else — the ECR registry host, the CI role ARN, the backup bucket, the
+static IP and the two one-shot secrets — is **written back into this file by the
+provisioning run**, so they cannot be lost to a closed terminal. The only value
+you add by hand afterwards is `GENEAV_SSM_NODE`, which does not exist until the
+box registers itself a few minutes later.
+
+CI never reads this file. GitHub Actions authenticates through the OIDC role and
+takes the same values from repository secrets and variables, so the two paths
+share one set of variable names.
+
+If `AWS_ACCOUNT_ID` is set and your credentials resolve to a *different*
+account, `aws-provision.sh` aborts rather than building the stack somewhere
+nobody is looking for it.
+
 ### Provision from scratch
 
 ```bash
+aws sso login                    # or `aws configure sso` the first time
 ./aws-provision.sh --dry-run     # show what would be created
 ./aws-provision.sh               # Lightsail + ECR + IAM + SSM activation + S3 backups
 ```
@@ -345,11 +372,9 @@ and the **one-shot** SSM activation code. Follow the "Next" steps it prints.
 
 ### Deploy manually
 
-```bash
-export AWS_REGION=us-east-1
-export GENEAV_REGISTRY=<acct>.dkr.ecr.us-east-1.amazonaws.com
-export GENEAV_SSM_NODE=mi-0123456789abcdef0
+With `.env.aws` populated this needs no exports at all:
 
+```bash
 scripts/deploy-lightsail.sh              # deploy the current commit (must be in ECR)
 scripts/deploy-lightsail.sh --dry-run    # print the remote script, change nothing
 scripts/deploy-lightsail.sh <sha>        # deploy/roll back to a specific tag
