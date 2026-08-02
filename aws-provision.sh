@@ -22,6 +22,18 @@
 # transfer into one x86 price.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ---- local values ----
+# .env.aws carries the account id, the derived ECR/bucket names, and the one-shot
+# secrets from a previous run. It is gitignored and absent in CI, which passes
+# the same values in through the environment instead — hence the -f guard.
+ENV_FILE="${GENEAV_ENV_FILE:-$SCRIPT_DIR/.env.aws}"
+if [ -f "$ENV_FILE" ]; then
+  echo "==> reading $ENV_FILE"
+  set -a; . "$ENV_FILE"; set +a
+fi
+
 # ---- configuration (override via env, e.g. REGION=eu-west-1 ./aws-provision.sh) ----
 REGION="${AWS_REGION:-us-east-1}"
 AZ="${AZ:-${REGION}a}"
@@ -62,6 +74,36 @@ run() {
 }
 aws_() { aws --region "$REGION" "$@"; }
 
+# Persist a value back into $ENV_FILE, replacing the key in place if present.
+#
+# This exists for the two ONE-SHOT secrets — the SSM activation code and the
+# backup user's secret access key. AWS prints each exactly once and will never
+# reissue it, so relying on the operator to copy them out of terminal scrollback
+# is a bad trade against writing them to a file that is already gitignored.
+# Placeholder markers are skipped so a dry run cannot blank real values.
+save_env() {
+  [ "$DRY_RUN" = "1" ] && return 0
+  [ -f "$ENV_FILE" ] || return 0
+  case "${2:-}" in ''|'<dry-run>'|'<unchanged>') return 0 ;; esac
+  python3 - "$ENV_FILE" "$1" "$2" <<'PY'
+import io, sys
+path, key, val = sys.argv[1], sys.argv[2], sys.argv[3]
+lines = io.open(path, encoding="utf-8").read().splitlines(True)
+out, done = [], False
+for ln in lines:
+    if not ln.lstrip().startswith("#") and ln.split("=", 1)[0].strip() == key:
+        out.append("%s=%s\n" % (key, val))
+        done = True
+    else:
+        out.append(ln)
+if not done:
+    if out and not out[-1].endswith("\n"):
+        out.append("\n")
+    out.append("%s=%s\n" % (key, val))
+io.open(path, "w", encoding="utf-8").write("".join(out))
+PY
+}
+
 # A dry run must be readable on a laptop with no AWS CLI and no credentials —
 # that is most of its value, since the point is to review what this will create
 # BEFORE handing it an account. Only the real run insists on either.
@@ -74,15 +116,30 @@ if ! command -v aws >/dev/null 2>&1; then
   fi
 fi
 
-ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
+EXPECTED_ACCOUNT="${AWS_ACCOUNT_ID:-}"
+LIVE_ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
+
+# Provisioning into the wrong account is expensive and tedious to unpick — it
+# creates billable infrastructure and IAM identities somewhere nobody is looking
+# for them. If the file names an account and the credentials resolve to a
+# different one, that is a misconfigured profile, not something to guess past.
+if [ -n "$LIVE_ACCOUNT" ] && [ -n "$EXPECTED_ACCOUNT" ] && [ "$LIVE_ACCOUNT" != "$EXPECTED_ACCOUNT" ]; then
+  echo "FATAL: authenticated as account $LIVE_ACCOUNT, but $ENV_FILE expects $EXPECTED_ACCOUNT." >&2
+  echo "       Switch profile (AWS_PROFILE=...) or fix AWS_ACCOUNT_ID. Refusing to continue." >&2
+  exit 1
+fi
+
+ACCOUNT_ID="${LIVE_ACCOUNT:-$EXPECTED_ACCOUNT}"
 if [ -z "$ACCOUNT_ID" ]; then
   if [ "$DRY_RUN" = "1" ]; then
     ACCOUNT_ID="000000000000"
     echo "==> NOTE: not authenticated; using placeholder account $ACCOUNT_ID."
   else
-    echo "FATAL: could not resolve the AWS account. Run 'aws configure' or 'aws sso login'." >&2
+    echo "FATAL: could not resolve the AWS account. Run 'aws configure sso' then 'aws sso login'." >&2
     exit 1
   fi
+elif [ -z "$LIVE_ACCOUNT" ]; then
+  echo "==> NOTE: not authenticated; using account $ACCOUNT_ID from $ENV_FILE."
 fi
 ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 echo "==> account $ACCOUNT_ID, region $REGION"
@@ -276,11 +333,30 @@ if [ "$DRY_RUN" = "1" ]; then
   echo "  [dry-run] aws ssm create-activation --iam-role $SSM_ROLE"
   ACTIVATION_ID="<dry-run>"; ACTIVATION_CODE="<dry-run>"
 else
-  ACTIVATION_JSON="$(aws_ ssm create-activation \
-    --default-instance-name "$INSTANCE" \
-    --iam-role "$SSM_ROLE" \
-    --registration-limit 1 \
-    --description "geneav Lightsail box")"
+  # IAM is eventually consistent, and SSM validates the role by name against its
+  # own view of it. On a first run the role is seconds old, so create-activation
+  # fails with "Nonexistent role or missing ssm service principal in trust
+  # policy" even though the role is present and correct. Observed on 2 Aug 2026;
+  # a retry a few seconds later succeeds. Retry rather than sleep blindly.
+  ACTIVATION_JSON=""
+  for attempt in $(seq 1 10); do
+    if ACTIVATION_JSON="$(aws_ ssm create-activation \
+      --default-instance-name "$INSTANCE" \
+      --iam-role "$SSM_ROLE" \
+      --registration-limit 1 \
+      --description "geneav Lightsail box" 2>/dev/null)"; then
+      break
+    fi
+    echo "  role not visible to SSM yet (attempt $attempt/10) — waiting 10s"
+    ACTIVATION_JSON=""
+    sleep 10
+  done
+  if [ -z "$ACTIVATION_JSON" ]; then
+    echo "FATAL: create-activation still failing after ~100s. Re-run the error" >&2
+    echo "       without 2>/dev/null to see it: aws ssm create-activation \\" >&2
+    echo "         --region $REGION --iam-role $SSM_ROLE --registration-limit 1" >&2
+    exit 1
+  fi
   ACTIVATION_ID="$(printf '%s' "$ACTIVATION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["ActivationId"])')"
   ACTIVATION_CODE="$(printf '%s' "$ACTIVATION_JSON" | python3 -c 'import json,sys;print(json.load(sys.stdin)["ActivationCode"])')"
 fi
@@ -397,10 +473,30 @@ PUBIP="$(aws_ lightsail get-static-ip --static-ip-name "$STATIC_IP_NAME" \
   --query 'staticIp.ipAddress' --output text)"
 NIPIO="geneav.${PUBIP//./-}.nip.io"
 
+# Capture everything worth keeping before printing it, so a closed terminal or a
+# truncated scrollback cannot cost you the one-shot values.
+save_env AWS_ACCOUNT_ID "$ACCOUNT_ID"
+save_env AWS_REGION "$REGION"
+save_env ECR_REGISTRY "$ECR_REGISTRY"
+save_env GENEAV_REGISTRY "$ECR_REGISTRY"
+save_env AWS_ROLE_ARN "arn:aws:iam::${ACCOUNT_ID}:role/${CI_ROLE}"
+save_env BACKUP_BUCKET "$BUCKET"
+save_env GENEAV_STATIC_IP "$PUBIP"
+save_env GENEAV_HOST "$NIPIO"
+save_env SSM_ACTIVATION_ID "$ACTIVATION_ID"
+save_env SSM_ACTIVATION_CODE "$ACTIVATION_CODE"
+save_env BACKUP_AWS_ACCESS_KEY_ID "$BACKUP_KEY_ID"
+save_env BACKUP_AWS_SECRET_ACCESS_KEY "$BACKUP_KEY_SECRET"
+chmod 600 "$ENV_FILE" 2>/dev/null || true
+
 cat <<EOF
 
 ============================================================
   AWS side is provisioned.
+
+  All of the below has also been written to $ENV_FILE
+  (gitignored, chmod 600) — including the two one-shot secrets, so you do
+  not have to rescue them from this scrollback.
 
   Static IP     : $PUBIP
   Temp hostname : $NIPIO      (use this until DNS is cut over)
@@ -418,9 +514,12 @@ cat <<EOF
     AWS_SECRET_ACCESS_KEY : $BACKUP_KEY_SECRET
 
   Next:
-    1) Wait for the node to appear, then note its mi- id:
+    1) Wait for the node to appear, then record its mi- id — this is the one
+       value the script cannot capture for you, since the box registers itself
+       minutes after this run finishes:
          aws ssm describe-instance-information --region $REGION \\
            --query 'InstanceInformationList[].[InstanceId,ComputerName,PingStatus]' --output table
+       Put it in $ENV_FILE as GENEAV_SSM_NODE.
     2) Set these in GitHub (Settings -> Secrets and variables -> Actions):
          secret   AWS_ROLE_ARN     = arn:aws:iam::${ACCOUNT_ID}:role/${CI_ROLE}
          variable AWS_REGION       = $REGION

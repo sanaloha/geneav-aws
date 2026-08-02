@@ -1,5 +1,14 @@
 # Production env file with the real GENEAV_HOST — commit only .env.prod.example.
 .env.prod
 
+# Local AWS account id, ECR registry host, SSM activation and the backup user's
+# access key. Sourced by aws-provision.sh and scripts/deploy-lightsail.sh.
+# This repo is public: the activation code and secret key are one-shot values
+# AWS will not reissue, and the account id is reconnaissance on its own.
+.env.aws
+
+# Catch-all, so a stray `.env` written by any tool cannot be committed either.
+.env
+
 # Local frontend env overrides.
 .env.local

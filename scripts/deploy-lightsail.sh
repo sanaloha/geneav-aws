@@ -29,6 +29,15 @@
 # Usage: scripts/deploy-lightsail.sh [--dry-run] [<sha>]
 set -euo pipefail
 
+# Local values (account id, ECR host, mi- node id) live in .env.aws at the repo
+# root. Gitignored, and absent in CI — which sets the same variables from
+# repository secrets and variables, so the -f guard is what keeps both paths
+# working from one set of names.
+ENV_FILE="${GENEAV_ENV_FILE:-$(cd "$(dirname "$0")/.." && pwd)/.env.aws}"
+if [ -f "$ENV_FILE" ]; then
+  set -a; . "$ENV_FILE"; set +a
+fi
+
 REGION="${AWS_REGION:-us-east-1}"
 NODE="${GENEAV_SSM_NODE:?set GENEAV_SSM_NODE (the mi-... managed node id)}"
 REMOTE_DIR="${GENEAV_REMOTE_DIR:-/home/ubuntu/geneav}"
