@@ -24,7 +24,7 @@ const linkClass = "font-semibold text-brand";
 
 // Shown as the "last updated" date. Kept explicit rather than computed so it
 // reflects when the policy text actually changed, not when the page rendered.
-const LAST_UPDATED = "July 26, 2026";
+const LAST_UPDATED = "August 2, 2026";
 
 export default function Privacy() {
   return (
@@ -129,11 +129,9 @@ export default function Privacy() {
               into the chat.
             </li>
             <li>
-              <strong>Microsoft</strong> — paid plans are sold through the Azure Marketplace, where
-              Microsoft is the merchant of record and processes your billing details; we receive
-              subscription details (plan, status, purchaser email) but never your payment method.
-              If you sign in with Microsoft, we receive your name, email address, and directory
-              identifiers from Microsoft Entra ID.
+              <strong>Microsoft</strong> — optional sign-in. If you sign in with Microsoft, we
+              receive your name, email address, and directory identifiers from Microsoft Entra ID.
+              We do not use Microsoft for anything else, and we do not process payments.
             </li>
           </ul>
         </Card>

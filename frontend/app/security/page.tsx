@@ -25,7 +25,7 @@ const linkClass = "font-semibold text-brand";
 
 // Explicit rather than computed, so it reflects when the content actually
 // changed. Matches the privacy policy and terms.
-const LAST_UPDATED = "July 27, 2026";
+const LAST_UPDATED = "August 2, 2026";
 
 // Every third party that touches customer data, for security questionnaires.
 const subprocessors = [
@@ -36,10 +36,9 @@ const subprocessors = [
     location: "US East (N. Virginia)",
   },
   {
-    name: "Microsoft (Marketplace & Entra ID)",
-    purpose:
-      "Paid-plan billing (merchant of record for Azure Marketplace purchases) and optional Microsoft sign-in",
-    data: "Purchase and subscription details; sign-in identity (name, email, tenant)",
+    name: "Microsoft (Entra ID)",
+    purpose: "Optional Microsoft sign-in",
+    data: "Sign-in identity (name, email, tenant)",
     location: "Global",
   },
   {

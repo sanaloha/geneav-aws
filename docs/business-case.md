@@ -155,7 +155,7 @@ of the argument credible.
 | API keys | None | `gav_live_` keys, SHA-256 hashed at rest, plaintext shown once ([`ApiKeyService.java:15-56`](../backend/src/main/java/com/geneav/scan/account/ApiKeyService.java)) |
 | Metering | None | Atomic per-calendar-month quota counters ([`UsageService.java:24-45`](../backend/src/main/java/com/geneav/scan/usage/UsageService.java)) |
 | TLS | You configure it | Automatic, auto-renewed |
-| Deployment | You build it | CI/CD with automatic rollback on build failure ([`scripts/deploy-vm.sh:94-105`](../scripts/deploy-vm.sh)) |
+| Deployment | You build it | CI/CD with automatic rollback on build failure ([`scripts/deploy-lightsail.sh`](../scripts/deploy-lightsail.sh)) |
 | GPL position | You work it out | Already worked out and documented (§4.2) |
 
 ClamAV's own rate-limiting story deserves emphasis: there isn't one. Expose `clamd` to application
@@ -221,7 +221,7 @@ backend, ClamAV, PostgreSQL and Umami ([`aws-provision.sh`](../aws-provision.sh)
 > 1. **The box was ~4x oversized.** Measured usage is ~2.0 GB of 7.8 GB (below).
 > 2. **Azure would not sell a smaller one.** Both B1ms and B2s failed in eastus with
 >    `SkuNotAvailable … Capacity Restrictions`, live and deallocated, so the downsize
->    script sat parked ([`scripts/retry-vm-downsize.ps1`](../scripts/retry-vm-downsize.ps1)).
+>    script sat parked (deleted with the rest of the old-host tooling, 2 Aug 2026).
 > 3. **Lightsail bundles what Azure billed separately.** Compute, 80 GB SSD, the static IP
 >    and 4 TB of transfer are one $24 line; on Azure those were four.
 >
@@ -569,7 +569,7 @@ sellable. In priority order, as candidate issues under epic GN-3:
 |---|---|---|
 | 8 | Organisations / team accounts | Unblocks deals larger than one developer. |
 | 8a | **Make the offer Azure-benefit eligible** | An eligible Marketplace purchase draws down the customer's Microsoft Azure Consumption Commitment — a committed enterprise can buy geneav with budget it has already spent. No card checkout can offer this, and it is the strongest enterprise lever the product now has. |
-| 9 | Container registry for deploys | `deploy-vm.sh` inline delivery has a hard ceiling. |
+| 9 | Container registry for deploys | Done — ECR; the old inline-delivery path had a hard size ceiling. |
 | 10 | Evaluate a second engine behind `ScanEngine` | The one change that would move geneav off "ClamAV with a nice API" — and justify pricing near the market. |
 
 **Positioning guidance for all customer-facing material**

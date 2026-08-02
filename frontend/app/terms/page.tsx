@@ -31,7 +31,7 @@ const linkClass = "font-semibold text-brand";
 
 // Explicit rather than computed, so it reflects when the terms actually
 // changed — not when the page rendered. Matches the privacy policy.
-const LAST_UPDATED = "July 25, 2026";
+const LAST_UPDATED = "August 2, 2026";
 
 export default function Terms() {
   return (
@@ -147,13 +147,10 @@ export default function Terms() {
             scans count against your quota; failed requests do not.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-            Paid plans are purchased through the <strong>Microsoft Azure Marketplace</strong>.
-            Microsoft is the merchant of record: it collects payment, applies any taxes, and bills
-            your Azure account monthly in advance under the Microsoft Customer Agreement.
-            Cancellation and any refunds run through Microsoft&apos;s marketplace terms — cancel
-            from the Azure portal at any time and you retain access until the end of the paid
-            period. Where a plan offers a free trial, no charge is made if you cancel before the
-            trial ends.
+            Paid plans are <strong>not currently sold self-serve</strong>. There is no checkout on
+            this site and we do not collect or store card details. To arrange a paid plan, contact
+            us and we will confirm the price, billing term, and cancellation arrangements in
+            writing before anything is charged.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
             We may change pricing with at least 30 days&apos; notice; changes take effect at your

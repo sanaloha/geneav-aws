@@ -17,15 +17,6 @@ const MICROSOFT_LOGIN_ENABLED = process.env.NEXT_PUBLIC_MICROSOFT_LOGIN_ENABLED 
 
 type Me = { email: string; plan: string; authProvider: string };
 
-type Subscription = {
-  subscriptionId: string;
-  planKey: string;
-  status: string;
-  freeTrial: boolean;
-  autoRenew: boolean | null;
-  termEnd: string | null;
-};
-
 type Usage = {
   plan: string;
   period: string;
@@ -100,9 +91,6 @@ export default function Dashboard() {
   // Dashboard data
   const [usage, setUsage] = useState<Usage | null>(null);
   const [keys, setKeys] = useState<KeySummary[] | null>(null);
-  // Azure Marketplace subscription; null covers "none", "not configured" (503),
-  // and plain errors alike — the card simply does not render.
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -131,14 +119,6 @@ export default function Dashboard() {
       setDataError(`Could not reach the API at ${API_BASE}.`);
     } finally {
       setLoading(false);
-    }
-    // Best-effort and separate: a 404 (no subscription) or 503 (marketplace
-    // not configured) must not surface as a dashboard error.
-    try {
-      const sRes = await fetch(`${API_BASE}/api/v1/marketplace/subscription`, withCreds);
-      setSubscription(sRes.ok ? await sRes.json() : null);
-    } catch {
-      setSubscription(null);
     }
   }, []);
 
@@ -577,45 +557,6 @@ export default function Dashboard() {
           </>
         ) : null}
       </Card>
-
-      {subscription && (
-        <Card className="mb-5">
-          <h3 className="m-0 text-base font-bold text-ink">Subscription</h3>
-          <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
-            <Badge tone="brand">{subscription.planKey} plan</Badge>
-            <Badge
-              tone={subscription.status === "Subscribed" ? "success" : "neutral"}
-              uppercase
-            >
-              {subscription.status}
-            </Badge>
-            {subscription.freeTrial && <Badge tone="success">Free trial</Badge>}
-            <span className="text-[13px] text-ink-muted">
-              via Azure Marketplace
-              {subscription.termEnd &&
-                ` · ${subscription.autoRenew ? "renews" : "ends"} ${fmtDate(subscription.termEnd)}`}
-            </span>
-          </div>
-          {subscription.status === "Suspended" && (
-            <p className="mb-0 mt-3 rounded-[10px] border border-danger-border bg-danger-bg p-3 text-sm text-danger">
-              Microsoft could not collect payment, so your account is on the free tier for now.
-              Fix the payment method in the Azure portal and your plan is restored automatically.
-            </p>
-          )}
-          <p className="mb-0 mt-3 text-[13px] text-ink-muted">
-            Change plan or cancel from the{" "}
-            <a
-              href="https://portal.azure.com/#browse/Microsoft.SaaS%2Fresources"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-brand hover:text-brand-hover"
-            >
-              Azure portal
-            </a>
-            . Billing is handled by Microsoft.
-          </p>
-        </Card>
-      )}
 
       <Card>
         <h3 className="m-0 text-base font-bold text-ink">API keys</h3>
