@@ -23,6 +23,12 @@ import Section from "./ui/Section";
  * customers, testimonials, user counts, or uptime figures.
  */
 
+// The curl example below is meant to be copied and run, so it has to name the
+// host this build actually serves — matching /developers, which already derives
+// it this way. It was hardcoded to https://geneav.com, which sent visitors on
+// any other deployment to a different site.
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 const trustSignals = [
   { icon: ShieldCheck, label: "ClamAV engine" },
   { icon: Lock, label: "Files never stored" },
@@ -313,7 +319,7 @@ export default function Home() {
             </ButtonLink>
           </div>
           <pre className="m-0 overflow-x-auto rounded-card border border-line bg-surface-sunken p-5 text-[13px] leading-relaxed">
-            <code>{`curl -F "file=@invoice.pdf" https://geneav.com/api/v1/scan
+            <code>{`curl -F "file=@invoice.pdf" ${API_BASE}/api/v1/scan
 
 {
   "scanId": "a1b2c3d4-...",

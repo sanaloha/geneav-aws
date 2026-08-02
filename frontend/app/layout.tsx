@@ -11,7 +11,7 @@ import { ANALYTICS_SCRIPT_URL, SITE_NAME, SITE_URL, SITE_TITLE, SITE_DESCRIPTION
 import { THEME_COLOR } from "./theme";
 
 /**
- * Self-hosted Umami, on analytics.geneav.com (see ANALYTICS_SCRIPT_URL for why
+ * Self-hosted Umami, on analytics.<host> (see ANALYTICS_SCRIPT_URL for why
  * a subdomain and not a path). Unset in local development and on any deploy
  * without a website id, in which case no tag is emitted at all and `track()` in
  * lib/analytics no-ops.
