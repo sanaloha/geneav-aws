@@ -21,11 +21,16 @@ Commands:
   status       Show container status and backend health
   logs [svc]   Follow logs, all services or one of: clamav backend frontend
   reset        Stop and delete the ClamAV signature DB volume (forces re-download)
-  scan <file>  Scan a file through the running API
+  scan <file>  Scan a file through the running API (needs GENEAV_API_KEY)
   help         Show this message
 
 Env:
   GENEAV_HEALTH_TIMEOUT  Seconds to wait for health on start (default 240)
+  GENEAV_API_KEY         gav_live_... key used by 'scan'. The API has no
+                         anonymous tier; mint one with:
+                           curl -sX POST $API_BASE/api/v1/signup \\
+                             -H 'Content-Type: application/json' \\
+                             -d '{"email":"you@example.com"}'
 EOF
 }
 
@@ -109,7 +114,18 @@ cmd_scan() {
     echo "error: no such file: $file" >&2
     exit 1
   fi
-  curl -fsS -F "file=@${file}" "$API_BASE/api/v1/scan"
+  if [ -z "${GENEAV_API_KEY:-}" ]; then
+    cat >&2 <<EOF
+error: set GENEAV_API_KEY first — /api/v1/scan requires an API key.
+
+  export GENEAV_API_KEY=\$(curl -sX POST $API_BASE/api/v1/signup \\
+    -H 'Content-Type: application/json' -d '{"email":"you@example.com"}' \\
+    | sed -n 's/.*"apiKey":"\([^"]*\)".*/\1/p')
+EOF
+    exit 1
+  fi
+  curl -fsS -H "Authorization: Bearer ${GENEAV_API_KEY}" \
+    -F "file=@${file}" "$API_BASE/api/v1/scan"
   echo
 }
 

@@ -67,8 +67,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String type = typeOf(path);
 
-        // Authenticated clients are throttled by their plan and keyed by account;
-        // anonymous clients fall back to the free per-IP budgets.
+        // Authenticated clients are throttled by their plan and keyed by account.
+        // The per-IP budgets now catch only the keyless paths — signup and the
+        // session-authenticated dashboard calls — since scan and chat cannot get
+        // this far without a key.
         AuthenticatedClient client = ApiKeyAuthFilter.current(request).orElse(null);
         RateLimitProperties.Limit limit;
         String key;

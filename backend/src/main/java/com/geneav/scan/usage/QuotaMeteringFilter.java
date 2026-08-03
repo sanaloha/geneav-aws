@@ -18,10 +18,14 @@ import java.io.IOException;
 /**
  * Enforces the monthly scan quota and meters usage for authenticated scans.
  *
- * <p>Anonymous requests are untouched (their limits are purely IP rate limits).
- * For an authenticated {@code POST /api/v1/scan}: the month's usage is checked
- * against the plan quota up front ({@code 402} when exhausted), and one unit is
- * recorded only after the scan actually succeeds — failed scans are not billed.
+ * <p>For {@code POST /api/v1/scan}: the month's usage is checked against the plan
+ * quota up front ({@code 402} when exhausted), and one unit is recorded only after
+ * the scan actually succeeds — failed scans are not billed.
+ *
+ * <p>Everything else passes straight through. Since 3 Aug 2026 a scan cannot reach
+ * this filter without a key — {@link com.geneav.scan.account.ApiKeyAuthFilter} answers
+ * {@code 401} first — so the unauthenticated case that used to slip past unmetered
+ * no longer exists. The null check below is kept as a guard, not as a supported path.
  */
 public class QuotaMeteringFilter extends OncePerRequestFilter {
 

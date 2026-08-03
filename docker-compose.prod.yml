@@ -65,6 +65,16 @@ services:
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: https://${GENEAV_HOST}
+      # Server-side route handlers under /site-api/* reach the backend directly,
+      # inside the docker network: a demo scan then skips Caddy, TLS, and the
+      # visitor-facing rate-limit budget it would otherwise spend twice.
+      GENEAV_API_INTERNAL_URL: http://backend:8080
+      # The demo account's API key, which those routes attach so the homepage
+      # scanner and chat widget work for visitors who have no account of their own.
+      # Read at RUNTIME (unlike every NEXT_PUBLIC_* value), so rotating it is a
+      # restart, not an image rebuild. Unset is safe: the demo answers 503 and the
+      # rest of the site is unaffected. See README "Demo API key".
+      GENEAV_DEMO_API_KEY: ${GENEAV_DEMO_API_KEY:-}
 
   backend:
     image: ${GENEAV_REGISTRY:?set GENEAV_REGISTRY (the ECR registry host)}/geneav-backend:${GENEAV_IMAGE_TAG:?set GENEAV_IMAGE_TAG (the commit SHA)}

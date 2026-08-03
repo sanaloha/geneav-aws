@@ -6,7 +6,12 @@ import { useCallback, useRef, useState } from "react";
 import { track } from "../lib/analytics";
 import Card from "../ui/Card";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+/**
+ * Same-origin proxy rather than the API directly: /api/v1/scan now requires an API
+ * key, and a visitor trying the demo has no account. The route attaches a demo key
+ * on the server, where it stays. See app/lib/siteApi.ts.
+ */
+const SCAN_ENDPOINT = "/site-api/scan";
 
 type ScanResponse = {
   scanId: string;
@@ -43,7 +48,7 @@ export default function ScanForm() {
     try {
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch(`${API_BASE}/api/v1/scan`, { method: "POST", body });
+      const res = await fetch(SCAN_ENDPOINT, { method: "POST", body });
       if (!res.ok) {
         let message = `Scan failed (HTTP ${res.status}).`;
         try {
@@ -64,8 +69,9 @@ export default function ScanForm() {
     } catch {
       setState({
         kind: "error",
-        message:
-          "Could not reach the scan API. Make sure the backend is running at " + API_BASE + ".",
+        // The request is same-origin now, so reaching it failing means the site
+        // itself is unreachable — naming a backend URL would only mislead.
+        message: "Could not reach the scan API. Please check your connection and try again.",
       });
     }
   }, []);

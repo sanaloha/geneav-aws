@@ -116,6 +116,16 @@ services:
     container_name: geneav-frontend
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      # Server-side calls stay on the docker network; the browser-facing value
+      # above is a localhost URL that means nothing inside this container.
+      GENEAV_API_INTERNAL_URL: http://backend:8080
+      # Demo key for the homepage scanner and chat widget, which now need one
+      # (see ApiKeyAuthFilter). Mint one locally with:
+      #   curl -sX POST localhost:8080/api/v1/signup -H 'Content-Type: application/json' \
+      #        -d '{"email":"demo@localhost"}'
+      # then put the returned apiKey in .env as GENEAV_DEMO_API_KEY and restart.
+      # Unset just means the demo answers 503.
+      GENEAV_DEMO_API_KEY: ${GENEAV_DEMO_API_KEY:-}
     depends_on:
       - backend
 
