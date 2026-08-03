@@ -4,7 +4,12 @@ import clsx from "clsx";
 import { MessageCircle, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+/**
+ * Same-origin proxy rather than the API directly: /api/v1/chat now requires an API
+ * key, and the widget answers visitors who have no account. The routes attach a
+ * demo key on the server, where it stays. See app/lib/siteApi.ts.
+ */
+const CHAT_BASE = "/site-api/chat";
 
 type Role = "user" | "assistant";
 type Message = { role: Role; content: string };
@@ -21,7 +26,7 @@ const GREETING: Message = {
 let suggestionsCache: Promise<Suggestion[]> | null = null;
 
 function loadSuggestions(): Promise<Suggestion[]> {
-  suggestionsCache ??= fetch(`${API_BASE}/api/v1/chat/suggestions`)
+  suggestionsCache ??= fetch(`${CHAT_BASE}/suggestions`)
     .then((res) => (res.ok ? res.json() : []))
     // Chips are a convenience, never a requirement: if they cannot be fetched the
     // widget silently falls back to being the plain text box it was before.
@@ -34,7 +39,7 @@ let assistantEnabledCache: Promise<boolean> | null = null;
 function loadAssistantEnabled(): Promise<boolean> {
   // An unreachable health check is treated as available: the send path already
   // reports its own errors, and wrongly hiding the input is the worse failure.
-  assistantEnabledCache ??= fetch(`${API_BASE}/api/v1/chat/health`)
+  assistantEnabledCache ??= fetch(`${CHAT_BASE}/health`)
     .then((res) => (res.ok ? res.json() : { enabled: true }))
     .then((data: { enabled?: boolean }) => data.enabled !== false)
     .catch(() => true);
@@ -114,7 +119,7 @@ export default function ChatWidget() {
       // a suggestion chip *are* kept: they are real context, and a follow-up like
       // "and what about ZIP files?" is meaningless to the model without them.
       const history = next.filter((m) => m !== GREETING);
-      const res = await fetch(`${API_BASE}/api/v1/chat`, {
+      const res = await fetch(CHAT_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: history }),
@@ -135,7 +140,9 @@ export default function ChatWidget() {
       const data: { reply: string } = await res.json();
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
     } catch {
-      setError(`Could not reach the assistant. Make sure the API is running at ${API_BASE}.`);
+      // Same-origin now, so a network failure here means the site is unreachable
+      // rather than a misconfigured API URL.
+      setError("Could not reach the assistant. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }

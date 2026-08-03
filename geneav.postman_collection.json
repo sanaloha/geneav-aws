@@ -1,8 +1,14 @@
 {
   "info": {
     "name": "geneav — Scan API",
-    "description": "Document malware scanning.\n\nSet the `baseUrl` variable to https://geneav.com for production, or http://localhost:8080 when running the local docker stack.\n\nInteractive docs: https://geneav.com/docs",
+    "description": "Document malware scanning.\n\nSet the `baseUrl` variable to https://geneav.com for production, or http://localhost:8080 when running the local docker stack.\n\nEvery request except Sign up and Health needs an API key. Run \"Sign up\" once, copy the `apiKey` from the response into the `apiKey` collection variable, and the rest of the collection authenticates automatically.\n\nInteractive docs: https://geneav.com/docs",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{apiKey}}", "type": "string" }
+    ]
   },
   "variable": [
     {
@@ -13,15 +19,35 @@
     {
       "key": "apiKey",
       "value": "",
-      "description": "A gav_live_... key from the dashboard. Only needed for the metered request."
+      "description": "A gav_live_... key from the dashboard or from Sign up. Required on every request except Sign up and Health — there is no anonymous tier."
     }
   ],
   "item": [
     {
-      "name": "Scan a document (anonymous)",
+      "name": "Sign up (get your first API key)",
       "request": {
         "method": "POST",
-        "description": "Uploads one document and returns a clean/infected verdict.\n\nThe `file` form field MUST have its type set to File. Do not add a Content-Type header by hand — Postman generates the multipart boundary, and overriding it drops the boundary and breaks the request.\n\nLimits: 25 MB per file. Anonymous requests are rate limited to 10/min per IP.\n\nResponses: 200 completed, 400 missing/empty file, 413 too large, 415 unsupported type, 429 rate limited, 503 scan engine down.",
+        "description": "Creates an account and returns its first API key. The plaintext key is shown ONCE, in this response — copy it into the `apiKey` collection variable.\n\nOne of the few endpoints that needs no key, for the obvious reason.",
+        "auth": { "type": "noauth" },
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/signup",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "signup"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"you@example.com\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Scan a document",
+      "request": {
+        "method": "POST",
+        "description": "Uploads one document and returns a clean/infected verdict, authenticated with your API key so the scan counts against the account's monthly plan quota.\n\nThe `file` form field MUST have its type set to File. Do not add a Content-Type header by hand — Postman generates the multipart boundary, and overriding it drops the boundary and breaks the request.\n\nUsage is recorded only after a scan succeeds — failed scans are not billed.\n\nLimits: 25 MB per file; rate limited per plan.\n\nResponses: 200 completed, 400 missing/empty file, 401 missing/invalid key, 402 quota exhausted (free plan = 500 scans/month), 413 too large, 415 unsupported type, 429 rate limited, 503 scan engine down.",
         "url": {
           "raw": "{{baseUrl}}/api/v1/scan",
           "host": ["{{baseUrl}}"],
@@ -41,31 +67,14 @@
       }
     },
     {
-      "name": "Scan a document (API key, metered)",
+      "name": "Usage this month",
       "request": {
-        "method": "POST",
-        "description": "Same endpoint, authenticated with an API key so the scan counts against the account's monthly plan quota.\n\nUsage is recorded only after a scan succeeds — failed scans are not billed. Returns 402 once the quota is exhausted (free plan = 500 scans/month).",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            { "key": "token", "value": "{{apiKey}}", "type": "string" }
-          ]
-        },
+        "method": "GET",
+        "description": "Current-month scan usage against the plan quota for the key's account.",
         "url": {
-          "raw": "{{baseUrl}}/api/v1/scan",
+          "raw": "{{baseUrl}}/api/v1/usage",
           "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "scan"]
-        },
-        "body": {
-          "mode": "formdata",
-          "formdata": [
-            {
-              "key": "file",
-              "type": "file",
-              "src": "",
-              "description": "The document to scan."
-            }
-          ]
+          "path": ["api", "v1", "usage"]
         }
       }
     },
@@ -73,7 +82,8 @@
       "name": "Health",
       "request": {
         "method": "GET",
-        "description": "Reports whether the API and the ClamAV engine are ready. Returns status UP, or DEGRADED when the engine is unreachable.",
+        "description": "Reports whether the API and the ClamAV engine are ready. Returns status UP, or DEGRADED when the engine is unreachable.\n\nPublic: no key, so uptime monitors can reach it.",
+        "auth": { "type": "noauth" },
         "url": {
           "raw": "{{baseUrl}}/api/v1/health",
           "host": ["{{baseUrl}}"],

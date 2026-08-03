@@ -63,6 +63,31 @@
 		reverse_proxy backend:8080
 	}
 
+	# The website's own server-side calls to the API (homepage demo scanner, chat
+	# widget) → frontend. These are Next.js route handlers that attach the demo API
+	# key before forwarding to the backend, because /api/v1/scan and /api/v1/chat
+	# now require a key and a visitor trying the demo has no account.
+	#
+	# Declared ahead of the catch-all so it gets limits of its own. Without this
+	# block the demo would sit on the unthrottled frontend route while every scan
+	# behind it spent the demo account's quota, and the backend's per-IP limiter
+	# would see only the frontend container's address — one shared bucket for every
+	# visitor on earth. Same 20/min per visitor as /api/*, and the body cap matches
+	# the 30MB the proxy route enforces.
+	handle /site-api/* {
+		request_body {
+			max_size 30MB
+		}
+		rate_limit {
+			zone site_api {
+				key {remote_host}
+				events 20
+				window 1m
+			}
+		}
+		reverse_proxy frontend:3000
+	}
+
 	# API docs (Swagger UI + OpenAPI JSON) live on the backend but outside /api/*.
 	@docs path /docs /docs/* /api-docs /api-docs/* /swagger-ui /swagger-ui/*
 	handle @docs {

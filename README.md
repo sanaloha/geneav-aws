@@ -18,8 +18,9 @@ client library) and exposes:
 
 | Method | Path              | Description                                   |
 |--------|-------------------|-----------------------------------------------|
-| POST   | `/api/v1/scan`    | Upload a document (`multipart` `file`), get a JSON verdict |
-| GET    | `/api/v1/health`  | Reports API + engine readiness                |
+| POST   | `/api/v1/scan`    | Upload a document (`multipart` `file`), get a JSON verdict — **API key required** |
+| POST   | `/api/v1/chat`    | Ask the assistant — **API key required**      |
+| GET    | `/api/v1/health`  | Reports API + engine readiness (public)       |
 | POST   | `/api/v1/signup`  | Create an account, receive your first API key (programmatic) |
 | POST   | `/api/v1/auth/signup` · `/auth/login` · `/auth/logout` | Dashboard password auth (session cookie) |
 | GET    | `/api/v1/auth/me` | The signed-in account, or 401                 |
@@ -72,13 +73,31 @@ npm run dev                        # http://localhost:3000
 
 ## Try it
 
+### First, get a key
+
+`/api/v1/scan` and `/api/v1/chat` require an API key on **every** call — curl,
+Postman, or your own code. Sign up once and keep the key it returns:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/signup \
+  -H "Content-Type: application/json" -d '{"email":"you@example.com"}'
+# {"accountId":"...","email":"you@example.com","plan":"free","apiKey":"gav_live_...","keyPrefix":"gav_live_...."}
+
+export GENEAV_KEY=gav_live_...        # the "apiKey" above; shown exactly once
+```
+
+There is no anonymous tier. A call with no `Authorization` header gets a `401`
+telling you to create a key; only `/api/v1/health`, `/api/v1/signup`, and
+`/api/v1/auth/*` are reachable without one.
+
 ### Scan a document — `POST http://localhost:8080/api/v1/scan`
 
 Send a single file as a `multipart/form-data` field named `file`:
 
 ```bash
 # clean file
-curl -F "file=@README.md;type=text/plain" http://localhost:8080/api/v1/scan
+curl -H "Authorization: Bearer $GENEAV_KEY" \
+  -F "file=@README.md;type=text/plain" http://localhost:8080/api/v1/scan
 ```
 
 ```json
@@ -96,7 +115,8 @@ curl -F "file=@README.md;type=text/plain" http://localhost:8080/api/v1/scan
 ```bash
 # EICAR test virus (harmless, triggers a detection)
 printf 'X5O!P%%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > eicar.txt
-curl -F "file=@eicar.txt;type=text/plain" http://localhost:8080/api/v1/scan
+curl -H "Authorization: Bearer $GENEAV_KEY" \
+  -F "file=@eicar.txt;type=text/plain" http://localhost:8080/api/v1/scan
 ```
 
 ```json
@@ -113,6 +133,8 @@ curl -F "file=@eicar.txt;type=text/plain" http://localhost:8080/api/v1/scan
 
 ### Health — `GET http://localhost:8080/api/v1/health`
 
+Public — no key, so uptime monitors and load balancers can reach it:
+
 ```bash
 curl http://localhost:8080/api/v1/health
 # {"status":"UP","engine":"UP","checks":[{"name":"clamav","status":"UP"}]}
@@ -122,6 +144,7 @@ curl http://localhost:8080/api/v1/health
 
 | Situation                          | HTTP |
 |------------------------------------|------|
+| Missing or invalid API key         | 401  |
 | Empty / missing `file` in the form | 400  |
 | File exceeds the 25 MB limit       | 413  |
 | Unsupported content type           | 415  |
@@ -137,6 +160,7 @@ Send the conversation so far as JSON; the last message is the user's new questio
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/chat \
+  -H "Authorization: Bearer $GENEAV_KEY" \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"What file types can geneav scan?"}]}'
 # {"reply":"geneav scans documents such as PDFs, Office files, text, CSV, RTF, and ZIPs …","model":"gpt-4o-mini"}
@@ -148,8 +172,10 @@ availability with `GET /api/v1/chat/health`.
 
 ## Commercial API — accounts, keys & quotas
 
-The scan and chat endpoints are usable **anonymously** (free tier, throttled per
-IP). For higher, metered access, callers authenticate with an API key.
+The scan and chat endpoints require an API key from **every** caller; usage is
+metered against the account's plan quota. Anonymous access was removed on
+3 Aug 2026 — before that a keyless caller got a free, IP-throttled scan, which
+meant the one metered operation in the product could not be attributed to anyone.
 
 ```bash
 # 1. Sign up — returns your first key ONCE (store it; it is not recoverable)
@@ -187,6 +213,26 @@ Response codes: **401** missing/invalid key · **402** monthly quota exhausted �
 in `application.yml` under `geneav.plans` and are env-overridable. Accounts, keys,
 and usage live in **PostgreSQL** (schema managed by Flyway).
 
+### Demo API key
+
+The website's own try-it features — the homepage/`/developers` scan box and the
+chat widget — are used by visitors who have no account, so they cannot supply a
+key, and shipping one to the browser would publish it. They instead call
+same-origin routes under `/site-api/*` (Next.js route handlers in
+`frontend/app/site-api/`) which attach a **demo account's** key server-side, where
+it stays inside the container.
+
+Set `GENEAV_DEMO_API_KEY` on the **frontend** service to a key minted like any
+other (`POST /api/v1/signup` against that environment's database, then paste the
+returned `apiKey`). It is read at runtime, so rotating it is a restart, not an
+image rebuild — unlike every `NEXT_PUBLIC_*` value.
+
+Leaving it unset is safe and is the right state on a fresh box: the demo answers
+`503` with a "sign up for a key" message and the rest of the site is unaffected.
+Keep the demo account on a free plan — its quota is what caps demo usage — and
+note that Caddy rate-limits `/site-api/*` per visitor IP, since the backend's own
+limiter would otherwise see only the frontend container's address.
+
 ## Billing — no self-serve channel
 
 **There is no checkout.** The free tier self-serves; paid tiers are arranged by
@@ -207,12 +253,16 @@ Nothing in the scan, quota, or key path depends on it.
 
 1. **New request** → set method to **POST** and URL to
    `http://localhost:8080/api/v1/scan`.
-2. Open the **Body** tab → select **form-data**.
-3. Add a key named exactly **`file`**. Hover the key's value cell and switch its
+2. Open the **Authorization** tab → type **Bearer Token** → paste your
+   `gav_live_…` key. Without it the request comes back `401`; the API has no
+   anonymous tier. (The bundled `geneav.postman_collection.json` already wires
+   this to an `apiKey` collection variable — just fill it in.)
+3. Open the **Body** tab → select **form-data**.
+4. Add a key named exactly **`file`**. Hover the key's value cell and switch its
    type dropdown from *Text* to **File**, then choose a file to upload.
    - Do **not** set the `Content-Type` header yourself — Postman adds the
      `multipart/form-data` boundary automatically when you use form-data.
-4. Click **Send**. You'll get the JSON verdict shown above.
+5. Click **Send**. You'll get the JSON verdict shown above.
 
 To reproduce a detection, save the EICAR string to a `.txt` file and upload it:
 

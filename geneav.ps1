@@ -38,11 +38,14 @@ Commands:
   status       Show container status and backend health
   logs [svc]   Follow logs, all services or one of: clamav backend frontend
   reset        Stop and delete the ClamAV signature DB volume (forces re-download)
-  scan <file>  Scan a file through the running API
+  scan <file>  Scan a file through the running API (needs GENEAV_API_KEY)
   help         Show this message
 
 Env:
   GENEAV_HEALTH_TIMEOUT  Seconds to wait for health on start (default 240)
+  GENEAV_API_KEY         gav_live_... key used by 'scan'. The API has no
+                         anonymous tier; mint one by POSTing your email to
+                         $ApiBase/api/v1/signup
 "@
 }
 
@@ -132,8 +135,11 @@ function Invoke-Scan {
     $file = $Rest[0]
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "no such file: $file" }
     $full = (Resolve-Path -LiteralPath $file).Path
+    if (-not $env:GENEAV_API_KEY) {
+        throw "set GENEAV_API_KEY first - /api/v1/scan requires an API key. Mint one by POSTing {""email"":""you@example.com""} to $ApiBase/api/v1/signup and use the returned apiKey."
+    }
     # curl.exe (not the PS alias) so multipart upload matches the documented API call.
-    curl.exe -fsS -F "file=@$full" "$ApiBase/api/v1/scan"
+    curl.exe -fsS -H "Authorization: Bearer $env:GENEAV_API_KEY" -F "file=@$full" "$ApiBase/api/v1/scan"
     Write-Host ''
 }
 

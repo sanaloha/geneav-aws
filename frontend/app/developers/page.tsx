@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 import ScanForm from "../components/ScanForm";
 import Badge from "../ui/Badge";
 import { ButtonLink } from "../ui/Button";
@@ -19,6 +20,7 @@ const codeClass =
   "m-0 overflow-x-auto rounded-card border border-line bg-surface-sunken p-4 text-[13px] leading-relaxed";
 
 const errors = [
+  { code: "401", body: "Missing, invalid, or revoked API key." },
   { code: "400", body: "No file provided or the file is empty." },
   { code: "413", body: "File exceeds the maximum allowed size (25 MB)." },
   { code: "415", body: "Unsupported content type." },
@@ -38,11 +40,12 @@ export default function Developers() {
 
         <h2 className="mb-2 mt-2 text-xl font-bold text-ink">Try it now</h2>
         <p className="mb-4 text-[15px] text-ink-muted">
-          Upload a document and see the live verdict. Requests go to{" "}
+          Upload a document and see the live verdict — no account needed. This box
+          scans through{" "}
           <code className="rounded bg-surface-sunken px-1.5 py-0.5 text-[13px] text-ink">
             {API_BASE}
-          </code>
-          .
+          </code>{" "}
+          on our side; calling the API yourself needs a key, as shown below.
         </p>
         <ScanForm />
       </Section>
@@ -52,6 +55,7 @@ export default function Developers() {
         <p className="mb-4 mt-2 text-[15px] text-ink-muted">The request shape:</p>
         <pre className={codeClass}>
           <code>{`POST /api/v1/scan
+Authorization: Bearer gav_live_...
 Content-Type: multipart/form-data
 
 field: file=<your document>`}</code>
@@ -59,8 +63,18 @@ field: file=<your document>`}</code>
 
         <p className="mb-3 mt-6 text-[15px] text-ink-muted">Example:</p>
         <pre className={codeClass}>
-          <code>{`curl -F "file=@invoice.pdf" ${API_BASE}/api/v1/scan`}</code>
+          <code>{`curl -H "Authorization: Bearer gav_live_..." \\
+  -F "file=@invoice.pdf" ${API_BASE}/api/v1/scan`}</code>
         </pre>
+
+        <p className="mt-6 text-[15px] text-ink-muted">
+          Every call needs a key — there is no anonymous tier.{" "}
+          <Link href="/login" className="font-medium text-ink underline underline-offset-2">
+            Create one in the dashboard
+          </Link>{" "}
+          and send it as a bearer token. Calls without one return{" "}
+          <code className="rounded bg-surface-sunken px-1.5 py-0.5 text-[13px] text-ink">401</code>.
+        </p>
 
         <p className="mb-3 mt-6 text-[15px] text-ink-muted">
           Response <code className="text-ink">200 OK</code>:

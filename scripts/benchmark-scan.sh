@@ -19,8 +19,8 @@
 #
 # BEFORE YOU RUN IT
 #
-# The per-IP token bucket (10 requests/minute for anonymous scans) will throttle
-# this long before the semaphore does, and you would end up benchmarking the rate
+# The token bucket — per plan for an authenticated caller — will throttle this
+# long before the semaphore does, and you would end up benchmarking the rate
 # limiter. Relax it for the run:
 #
 #   GENEAV_RATELIMIT_ENABLED=false
@@ -39,7 +39,7 @@
 #   -c  concurrent clients    (default 8 — deliberately above the semaphore)
 #   -n  total requests        (default 100)
 #   -s  payload size in KB    (default 256)
-#   -k  API key, if you want to test the authenticated path
+#   -k  API key (REQUIRED — /api/v1/scan has no anonymous tier)
 #
 set -euo pipefail
 
@@ -69,18 +69,22 @@ trap 'rm -rf "$work"' EXIT
 payload="$work/payload.bin"
 dd if=/dev/urandom of="$payload" bs=1024 count="$SIZE_KB" 2>/dev/null
 
-auth=()
-AUTH_HEADER=""
-if [ -n "$API_KEY" ]; then
-  auth=(-H "Authorization: Bearer $API_KEY")
-  AUTH_HEADER="Authorization: Bearer $API_KEY"
+# /api/v1/scan requires a key, so a run without one measures nothing but how fast
+# the API can answer 401. Fail early rather than reporting a meaningless p99.
+if [ -z "$API_KEY" ]; then
+  echo "error: -k <gav_live_...> is required; /api/v1/scan has no anonymous tier." >&2
+  echo "       mint one: curl -sX POST $URL/api/v1/signup -H 'Content-Type: application/json' \\" >&2
+  echo "                   -d '{\"email\":\"bench@example.com\"}'" >&2
+  exit 2
 fi
+auth=(-H "Authorization: Bearer $API_KEY")
+AUTH_HEADER="Authorization: Bearer $API_KEY"
 
 echo "geneav scan benchmark"
 echo "  target       $URL"
 echo "  payload      ${SIZE_KB} KB of random bytes"
 echo "  requests     $REQUESTS at concurrency $CONCURRENCY"
-echo "  auth         ${API_KEY:+API key}${API_KEY:-anonymous}"
+echo "  auth         API key (plan limits apply, not the per-IP ones)"
 echo
 
 # Warm-up: the first scan after a restart pays JIT and connection setup costs

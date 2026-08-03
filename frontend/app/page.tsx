@@ -331,7 +331,8 @@ export default function Home() {
             </ButtonLink>
           </div>
           <pre className="m-0 overflow-x-auto rounded-card border border-line bg-surface-sunken p-5 text-[13px] leading-relaxed">
-            <code>{`curl -F "file=@invoice.pdf" ${API_BASE}/api/v1/scan
+            <code>{`curl -H "Authorization: Bearer gav_live_..." \\
+  -F "file=@invoice.pdf" ${API_BASE}/api/v1/scan
 
 {
   "scanId": "a1b2c3d4-...",
